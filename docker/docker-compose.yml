@@ -107,6 +107,70 @@ services:
     networks:
       - spark-network
 
+  # Postgres: the pipeline's persistent data store (courses,
+  # player_season_stats), loaded by src/load.py's eventual JDBC write.
+  #
+  # On the SAME spark-network as spark-master/spark-worker, so a JDBC write
+  # from a Spark driver/executor can reach it at postgres:5432 (the service
+  # name resolves via Docker's internal DNS) without needing the host-mapped
+  # port below. Port 5432 is ALSO published to the host (unlike the Spark
+  # services' internal-only concerns) specifically so you can connect
+  # directly with psql/a GUI client for debugging -- see docker/README.md.
+  #
+  # Two separate volumes, deliberately not shared:
+  #   - postgres-data (named volume): Postgres's actual data directory.
+  #     Named (not bind-mounted) so Postgres's own uid inside the container
+  #     owns it outright -- unlike the Spark services above, there's no
+  #     driver-writes-then-executor-writes ownership handoff to reconcile
+  #     here, so there's no reason to fight Postgres's default ownership by
+  #     bind-mounting a host path in its place. Persists across `docker
+  #     compose down` (without -v) and container restarts.
+  #     Mounted at /var/lib/postgresql (NOT .../data): as of the postgres:18
+  #     image, PGDATA defaults to a version-namespaced subdirectory
+  #     (/var/lib/postgresql/18/docker, pg_ctlcluster-style, to support
+  #     in-place major-version upgrades) rather than /var/lib/postgresql/data
+  #     directly -- mounting at .../data on this image causes the entrypoint
+  #     to refuse to start ("unused mount/volume"). Mounting the parent
+  #     directory instead lets the image manage that subdirectory itself.
+  #   - ./init (bind mount, read-only): docker/init/*.sql, mounted to
+  #     /docker-entrypoint-initdb.d/. The official postgres image's
+  #     entrypoint runs every .sql/.sh file there, in filename order, but
+  #     ONLY the very first time the container starts against a genuinely
+  #     empty data directory -- i.e. only once per postgres-data volume's
+  #     lifetime, not on every restart. See docker/README.md for how to
+  #     force a re-run (docker compose down -v) after changing schema.sql.
+  #
+  # POSTGRES_DB/USER/PASSWORD come from docker/.env (gitignored, like
+  # PROJECT_ROOT/UID/GID above) -- see docker/.env.example for the expected
+  # variable names. Never hardcode real credentials in this file.
+  postgres:
+    image: postgres:18
+    container_name: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"  # host psql/GUI client access -> localhost:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Conservative Docker-enforced cap, consistent with the Spark services
+    # above -- Postgres at this data size doesn't need much, and there's
+    # still the same 6GB WSL2 budget to share.
+    mem_limit: 512m
+    cpus: "1.0"
+    networks:
+      - spark-network
+
 networks:
   spark-network:
     driver: bridge
+
+volumes:
+  postgres-data:
