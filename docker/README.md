@@ -24,9 +24,10 @@ printf 'PROJECT_ROOT=%s\nUID=%s\nGID=%s\n' "$(cd .. && pwd)" "$(id -u)" "$(id -g
 
 See `.env.example` for what each value means:
 
-- `PROJECT_ROOT` has to match what `src/transform.py` computes for itself
-  at runtime (`Path(__file__).resolve().parent.parent`) -- see the comment
-  block at the top of `docker-compose.yml` for why that matters.
+- `PROJECT_ROOT` has to match what `src/pipeline.py` (and `src/extract.py`)
+  compute for themselves at runtime (`Path(__file__).resolve().parent.parent`)
+  -- see the comment block at the top of `docker-compose.yml` for why that
+  matters.
 - `UID`/`GID` run the Spark containers as *you*, so files the driver
   (host) and executors (containers) create under `data/` don't clash on
   ownership/permissions -- see the comment block at the top of
@@ -83,14 +84,14 @@ bind mount rather than a container volume.
   absolute path it lives at on the host (`${PROJECT_ROOT}/data`, from
   `docker/.env`), not remapped to a container-only path. This matters
   because a PySpark driver connecting in client deploy mode (as
-  `src/transform.py` does) resolves `spark.read`/`spark.write` paths on its
+  `src/pipeline.py` does) resolves `spark.read`/`spark.write` paths on its
   OWN local filesystem -- since the driver runs locally on the host, that
   path has to exist there too, not just inside the containers.
-  `src/transform.py` derives that same path itself at runtime (via
-  `Path(__file__).resolve().parent.parent`), so as long as `docker/.env`'s
-  `PROJECT_ROOT` is set correctly (see One-time setup above), both sides
-  agree automatically -- nothing machine-specific is hardcoded in either
-  file.
+  `src/pipeline.py` and `src/extract.py` each derive that same path
+  independently at runtime (via `Path(__file__).resolve().parent.parent`),
+  so as long as `docker/.env`'s `PROJECT_ROOT` is set correctly (see
+  One-time setup above), all three agree automatically -- nothing
+  machine-specific is hardcoded in any of them.
 - Both services also set `user: "${UID}:${GID}"` (from `docker/.env`), so
   the containers run as your host user rather than the image's baked-in
   uid. `spark.write` with `mode("overwrite")` deletes and recreates its

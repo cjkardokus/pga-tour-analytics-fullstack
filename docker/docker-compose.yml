@@ -14,7 +14,7 @@
 # out) at ${PROJECT_ROOT}/data *inside* the containers -- i.e. the same
 # absolute path data/ lives at on the host. That's required, not cosmetic:
 # in client deploy mode the driver (running locally on the host, see
-# src/transform.py) resolves/lists spark.read/write paths on ITS OWN local
+# src/pipeline.py) resolves/lists spark.read/write paths on ITS OWN local
 # filesystem before any work ships to executors, so the path has to exist at
 # that exact location on the host too, not just inside the containers.
 # Mounting at a container-only path like /opt/spark/work-dir/data works for

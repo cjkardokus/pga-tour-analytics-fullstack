@@ -1,39 +1,18 @@
 """
-Core PySpark transformation for the PGA Tour portfolio pipeline.
+Cleaning and aggregation logic for the PGA Tour pipeline.
 
-Reads the raw Kaggle export, applies the cleaning steps identified during
-prior pandas exploration (notebooks/initial_exploration.ipynb), and builds
-two aggregated output tables: player_season_stats and course_difficulty.
+Takes the raw DataFrame produced by extract.extract_raw_data(), applies the
+cleaning steps identified during prior pandas exploration
+(notebooks/initial_exploration.ipynb), and builds two aggregated output
+tables: player_season_stats and course_difficulty.
 
-Run against the local Docker Spark cluster (docker/docker-compose.yml must
-already be up):
-
-    python src/transform.py
-
-The driver runs locally on the host and submits work to spark-master /
-spark-worker over spark://localhost:7077. See PROJECT_DATA_DIR below for why
-a single absolute path works for both the driver and the executors here.
+See pipeline.py for the entry point that wires extract -> transform -> load
+together, and load.py for the output-writing logic.
 """
 
-import shutil
-from pathlib import Path
-
-from pyspark.sql import DataFrame, SparkSession, Window
+from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
-from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
-
-# --------------------------------------------------------------------------
-# Paths
-# --------------------------------------------------------------------------
-# In client deploy mode, spark.read/write path resolution happens on the
-# DRIVER's local filesystem (this process, running on the host), even though
-# the actual task execution happens on the worker container(s). So the same
-# absolute path has to resolve to the same file on both sides. The
-# docker-compose setup achieves that by bind-mounting data/ into both
-# containers at this exact host path, rather than remapping it to some
-# container-only path -- see docker/docker-compose.yml.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PROJECT_DATA_DIR = PROJECT_ROOT / "data"
+from pyspark.sql.types import IntegerType
 
 # --------------------------------------------------------------------------
 # Ranking thresholds
@@ -43,74 +22,6 @@ PROJECT_DATA_DIR = PROJECT_ROOT / "data"
 # tournaments) can post a misleadingly high average and rank #1 ahead of
 # full-season regulars. See build_player_season_stats() below.
 MIN_TOURNAMENTS_FOR_RANKING = 10
-
-# --------------------------------------------------------------------------
-# Schema
-# --------------------------------------------------------------------------
-# Explicit schema, no inferSchema -- avoids a slow extra scan of the file and
-# avoids Spark silently guessing wrong types.
-#
-# NOTE: the raw CSV's header has three fully-empty junk columns (pandas
-# labeled them Unnamed: 2/3/4, since they have no header text) sitting
-# between `player` and `tournament name`. Spark's CSV reader maps an
-# explicit schema to file columns *positionally*, so those three columns
-# still have to be declared here to keep the rest of the schema aligned with
-# the file -- they're dropped by name immediately after reading, in
-# load_raw_data() below, and never appear in any DataFrame after that.
-RAW_CSV_SCHEMA = StructType(
-    [
-        StructField("Player_initial_last", StringType(), True),
-        StructField("tournament id", IntegerType(), True),
-        StructField("player id", IntegerType(), True),
-        StructField("hole_par", IntegerType(), True),
-        StructField("strokes", IntegerType(), True),
-        StructField("hole_DKP", DoubleType(), True),
-        StructField("hole_FDP", DoubleType(), True),
-        StructField("hole_SDP", IntegerType(), True),
-        StructField("streak_DKP", IntegerType(), True),
-        StructField("streak_FDP", DoubleType(), True),
-        StructField("streak_SDP", IntegerType(), True),
-        StructField("n_rounds", IntegerType(), True),
-        StructField("made_cut", IntegerType(), True),
-        StructField("pos", DoubleType(), True),
-        StructField("finish_DKP", IntegerType(), True),
-        StructField("finish_FDP", IntegerType(), True),
-        StructField("finish_SDP", IntegerType(), True),
-        StructField("total_DKP", DoubleType(), True),
-        StructField("total_FDP", DoubleType(), True),
-        StructField("total_SDP", IntegerType(), True),
-        StructField("player", StringType(), True),
-        StructField("Unnamed: 2", StringType(), True),  # junk, dropped after read
-        StructField("Unnamed: 3", StringType(), True),  # junk, dropped after read
-        StructField("Unnamed: 4", StringType(), True),  # junk, dropped after read
-        StructField("tournament name", StringType(), True),
-        StructField("course", StringType(), True),
-        StructField("date", StringType(), True),
-        StructField("purse", DoubleType(), True),
-        StructField("season", IntegerType(), True),
-        StructField("no_cut", IntegerType(), True),
-        StructField("Finish", StringType(), True),
-        StructField("sg_putt", DoubleType(), True),
-        StructField("sg_arg", DoubleType(), True),
-        StructField("sg_app", DoubleType(), True),
-        StructField("sg_ott", DoubleType(), True),
-        StructField("sg_t2g", DoubleType(), True),
-        StructField("sg_total", DoubleType(), True),
-    ]
-)
-
-
-# --------------------------------------------------------------------------
-# Load
-# --------------------------------------------------------------------------
-def load_raw_data(spark: SparkSession) -> DataFrame:
-    """Read the raw CSV with RAW_CSV_SCHEMA and drop the Unnamed junk columns."""
-    return (
-        spark.read.option("header", True)
-        .schema(RAW_CSV_SCHEMA)
-        .csv(f"{PROJECT_DATA_DIR}/raw/pga_tour_raw.csv")
-        .drop("Unnamed: 2", "Unnamed: 3", "Unnamed: 4")
-    )
 
 
 # --------------------------------------------------------------------------
@@ -189,9 +100,15 @@ def filter_post_2016_seasons(df: DataFrame) -> DataFrame:
     return filtered
 
 
-def clean_data(df: DataFrame) -> DataFrame:
-    """Run all four cleaning steps in order. See each step's docstring above."""
-    df = drop_conflicting_duplicate_pairs(df)
+def clean_raw_data(raw_df: DataFrame) -> DataFrame:
+    """
+    Applies dedup, Finish parsing, and the post-2016 season filter to the
+    raw DataFrame from extract.extract_raw_data(). Returns the cleaned
+    DataFrame, ready for aggregation via build_player_season_stats() and
+    build_course_difficulty() below. See each step's docstring above for
+    details.
+    """
+    df = drop_conflicting_duplicate_pairs(raw_df)
     df = drop_pos_column(df)
     df = parse_finish_position(df)
     df = filter_post_2016_seasons(df)
@@ -201,10 +118,11 @@ def clean_data(df: DataFrame) -> DataFrame:
 # --------------------------------------------------------------------------
 # Output tables
 # --------------------------------------------------------------------------
-def build_player_season_stats(df: DataFrame) -> DataFrame:
+def build_player_season_stats(cleaned_df: DataFrame) -> DataFrame:
     """
     One row per (season, player_id): season-level scoring/strokes-gained
-    summary plus a season-over-season strokes-gained trend.
+    summary plus a season-over-season strokes-gained trend. `cleaned_df` is
+    the output of clean_raw_data() above.
 
     Strokes-gained is reported two ways per category (putt/arg/app/ott/t2g/
     total): avg_sg_* (mean per tournament, "how good is this player on a
@@ -238,7 +156,7 @@ def build_player_season_stats(df: DataFrame) -> DataFrame:
         which correctly propagates into a null sg_total_delta (no fabricated
         baseline).
     """
-    per_player_season = df.groupBy(F.col("season"), F.col("player id").alias("player_id")).agg(
+    per_player_season = cleaned_df.groupBy(F.col("season"), F.col("player id").alias("player_id")).agg(
         # first("player") rather than grouping on it directly: player_id is
         # the real grouping key, and this is a defensive way to always get a
         # single player name per group even if name formatting ever varies.
@@ -328,10 +246,11 @@ def build_player_season_stats(df: DataFrame) -> DataFrame:
     )
 
 
-def build_course_difficulty(df: DataFrame) -> DataFrame:
+def build_course_difficulty(cleaned_df: DataFrame) -> DataFrame:
     """
     One row per course: hosting frequency, average scoring relative to par,
     and average strokes-gained by category, ranked hardest-to-easiest.
+    `cleaned_df` is the output of clean_raw_data() above.
 
     difficulty_rank and avg_strokes_vs_par_rank each use a single global
     window (Window.orderBy(...), no partitionBy) since "hardest course" is a
@@ -362,7 +281,7 @@ def build_course_difficulty(df: DataFrame) -> DataFrame:
     players took more strokes over par on average, i.e. the course played
     harder, so the highest value is rank 1.
     """
-    per_course = df.groupBy("course").agg(
+    per_course = cleaned_df.groupBy("course").agg(
         F.countDistinct("tournament id").cast(IntegerType()).alias("tournaments_hosted"),
         F.avg(F.col("strokes") - F.col("hole_par")).alias("avg_strokes_vs_par"),
         F.avg("sg_total").alias("avg_sg_total"),
@@ -386,84 +305,3 @@ def build_course_difficulty(df: DataFrame) -> DataFrame:
             F.rank().over(strokes_vs_par_window),
         ),
     )
-
-
-# --------------------------------------------------------------------------
-# Write
-# --------------------------------------------------------------------------
-def _write_single_csv_and_parquet(df: DataFrame, name: str) -> None:
-    """
-    Write `df` to data/processed/ as both Parquet and a single flat CSV.
-
-    Parquet is the "proper" output here -- compressed, typed, splittable
-    columnar storage, and what a real downstream Spark/warehouse job would
-    consume. CSV is written alongside it purely for convenience (a quick
-    open in Excel/Power BI).
-
-    Spark's CSV writer always produces a *directory* of part-files, even
-    forced to one partition via coalesce(1) -- there's no writer option that
-    produces a bare .csv file directly. So we write CSV to a throwaway
-    directory and then promote the single part-file to a flat filename
-    ourselves, cleaning up Spark's directory litter (_SUCCESS, checksums,
-    etc.) afterward. coalesce(1) is safe here specifically because these are
-    small, already-aggregated tables -- doing this on the raw, row-level
-    dataset would kill parallelism.
-    """
-    processed_dir = PROJECT_DATA_DIR / "processed"
-    df.write.mode("overwrite").parquet(f"{processed_dir}/{name}.parquet")
-
-    tmp_name = f"_{name}_csv_tmp"
-    df.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{processed_dir}/{tmp_name}")
-
-    # The plain-Python cleanup below (promoting Spark's single part-file to
-    # a flat filename) runs in this same process, on this same path -- no
-    # separate host/container path to reconcile anymore.
-    tmp_dir = processed_dir / tmp_name
-    final_path = processed_dir / f"{name}.csv"
-
-    part_file = next(tmp_dir.glob("part-*.csv"))
-    if final_path.exists():
-        final_path.unlink()
-    part_file.rename(final_path)
-    shutil.rmtree(tmp_dir)
-
-
-# --------------------------------------------------------------------------
-# Entry point
-# --------------------------------------------------------------------------
-def build_spark_session() -> SparkSession:
-    return SparkSession.builder.appName("pga-tour-transform").master("spark://localhost:7077").getOrCreate()
-
-
-def main() -> None:
-    (PROJECT_DATA_DIR / "processed").mkdir(parents=True, exist_ok=True)
-
-    spark = build_spark_session()
-    try:
-        raw_df = load_raw_data(spark)
-
-        cleaned_df = clean_data(raw_df)
-        # Reused as the source for both output tables below (plus its own
-        # checkpoint count/show), so cache it to avoid redoing the dedup +
-        # filter chain three times over.
-        cleaned_df.cache()
-        print(f"\nCleaned row count: {cleaned_df.count()}")
-        cleaned_df.show(10, truncate=False)
-
-        player_season_stats = build_player_season_stats(cleaned_df)
-        print(f"\nplayer_season_stats row count: {player_season_stats.count()}")
-        player_season_stats.show(10, truncate=False)
-
-        course_difficulty = build_course_difficulty(cleaned_df)
-        print(f"\ncourse_difficulty row count: {course_difficulty.count()}")
-        course_difficulty.show(10, truncate=False)
-
-        _write_single_csv_and_parquet(player_season_stats, "player_season_stats")
-        _write_single_csv_and_parquet(course_difficulty, "course_difficulty")
-        print("\nWrote player_season_stats and course_difficulty to data/processed/ (csv + parquet).")
-    finally:
-        spark.stop()
-
-
-if __name__ == "__main__":
-    main()
