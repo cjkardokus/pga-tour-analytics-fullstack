@@ -243,7 +243,7 @@ def build_player_season_stats(df: DataFrame) -> DataFrame:
         # the real grouping key, and this is a defensive way to always get a
         # single player name per group even if name formatting ever varies.
         F.first("player").alias("player"),
-        F.count(F.lit(1)).alias("tournaments_played"),
+        F.count(F.lit(1)).cast(IntegerType()).alias("tournaments_played"),
         F.avg("sg_putt").alias("avg_sg_putt"),
         F.avg("sg_arg").alias("avg_sg_arg"),
         F.avg("sg_app").alias("avg_sg_app"),
@@ -259,10 +259,10 @@ def build_player_season_stats(df: DataFrame) -> DataFrame:
         # finish_position is null for CUT/WD/DQ rows; a null comparison
         # (e.g. null == 1) evaluates to null, which F.when() treats as
         # false and routes to otherwise(0) -- exactly what we want here.
-        F.sum(F.when(F.col("finish_position") == 1, 1).otherwise(0)).alias("wins"),
-        F.sum(F.when(F.col("finish_position") <= 5, 1).otherwise(0)).alias("top_5_finishes"),
-        F.sum(F.when(F.col("finish_position") <= 10, 1).otherwise(0)).alias("top_10_finishes"),
-        F.sum("made_cut").alias("cuts_made"),
+        F.sum(F.when(F.col("finish_position") == 1, 1).otherwise(0)).cast(IntegerType()).alias("wins"),
+        F.sum(F.when(F.col("finish_position") <= 5, 1).otherwise(0)).cast(IntegerType()).alias("top_5_finishes"),
+        F.sum(F.when(F.col("finish_position") <= 10, 1).otherwise(0)).cast(IntegerType()).alias("top_10_finishes"),
+        F.sum("made_cut").cast(IntegerType()).alias("cuts_made"),
     )
 
     player_trend_window = Window.partitionBy("player_id").orderBy("season")
@@ -363,7 +363,7 @@ def build_course_difficulty(df: DataFrame) -> DataFrame:
     harder, so the highest value is rank 1.
     """
     per_course = df.groupBy("course").agg(
-        F.countDistinct("tournament id").alias("tournaments_hosted"),
+        F.countDistinct("tournament id").cast(IntegerType()).alias("tournaments_hosted"),
         F.avg(F.col("strokes") - F.col("hole_par")).alias("avg_strokes_vs_par"),
         F.avg("sg_total").alias("avg_sg_total"),
         F.avg("sg_putt").alias("avg_sg_putt"),
