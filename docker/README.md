@@ -1,26 +1,39 @@
-# Local Spark cluster (Docker)
+# Local Spark cluster + Postgres (Docker)
 
-A minimal Spark standalone cluster for local development: one master + one
-worker, running via `apache/spark:4.2.0-python3` (matches the `pyspark==4.2.0`
-pin in `requirements.txt`).
+Local development infrastructure for the pipeline: a minimal Spark
+standalone cluster (one master + one worker, via
+`apache/spark:4.2.0-python3`, matching the `pyspark==4.2.0` pin in
+`requirements.txt`) plus a Postgres container (`postgres:18`) that's the
+pipeline's eventual persistent data store.
 
 The official `apache/spark` image is used so the driver (host) and cluster
 (containers) run the exact same Spark version.
 
-Sized for a 6GB-RAM-capped WSL2 environment: the worker is capped at 2GB /
-2 cores and the master at 1GB / 1 core (both enforced by Docker via
-`mem_limit`/`cpus`), leaving headroom for the OS, VS Code server, and a local
-Jupyter kernel/PySpark driver process running alongside the cluster.
+Sized for a 6GB-RAM-capped WSL2 environment: the Spark worker is capped at
+2GB / 2 cores, the master at 1GB / 1 core, and Postgres at 512MB / 1 core
+(all enforced by Docker via `mem_limit`/`cpus`), leaving headroom for the
+OS, VS Code server, and a local Jupyter kernel/PySpark driver process
+running alongside the cluster.
 
 ## One-time setup
 
 Before first run, create a `docker/.env` file (gitignored -- every clone
-sets its own) telling Docker Compose the absolute path this repo is checked
-out at, plus your host user/group id. From this `docker/` directory:
+sets its own) from the `.env.example` template in this directory:
 
 ```bash
-printf 'PROJECT_ROOT=%s\nUID=%s\nGID=%s\n' "$(cd .. && pwd)" "$(id -u)" "$(id -g)" > .env
+cp .env.example .env
 ```
+
+Then, from this `docker/` directory, fill in `PROJECT_ROOT`/`UID`/`GID`
+automatically:
+
+```bash
+printf 'PROJECT_ROOT=%s\nUID=%s\nGID=%s\n' "$(cd .. && pwd)" "$(id -u)" "$(id -g)" >> .env
+```
+
+(That appends to the `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` lines
+already copied from `.env.example` -- edit `.env` directly afterward if you
+want different Postgres credentials than the template's defaults.)
 
 See `.env.example` for what each value means:
 
@@ -35,6 +48,9 @@ See `.env.example` for what each value means:
   there's no separate `chmod -R o+w data/processed` step here anymore:
   once the containers run as your uid, they already have the same write
   access to `data/` that you do.
+- `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` are the credentials the
+  official `postgres` image uses to create the database/user on first
+  startup -- see the Postgres section below.
 
 ## Start the cluster
 
@@ -64,9 +80,56 @@ You can also check container status directly:
 docker compose ps
 ```
 
+All three containers should show as running, and `postgres` specifically
+should report `(healthy)` once its startup checks (`pg_isready`, configured
+in `docker-compose.yml`) pass.
+
 Once a job is running (e.g. from a local PySpark session connecting to
 `spark://localhost:7077`), its DAG/stage UI is available at
 **http://localhost:4040** for the duration of that job.
+
+## Postgres
+
+On first startup against an empty `postgres-data` volume, the official
+`postgres` image's entrypoint automatically creates the database/user (from
+`docker/.env`) and then runs every `.sql` file under `docker/init/` --
+i.e. `docker compose up` alone auto-creates the `courses` and
+`player_season_stats` tables (and their indexes) from `schema.sql`, with no
+separate migration step needed.
+
+To connect for manual inspection/debugging, either from the host with
+`psql` installed:
+
+```bash
+psql -h localhost -U <POSTGRES_USER> -d <POSTGRES_DB>
+```
+
+or via `docker exec` (no local `psql` install needed -- runs `psql` inside
+the container itself):
+
+```bash
+docker exec -it postgres psql -U <POSTGRES_USER> -d <POSTGRES_DB>
+```
+
+Either way, you'll be prompted for `POSTGRES_PASSWORD` from `docker/.env`.
+Once connected, `\dt` lists tables (you should see `courses` and
+`player_season_stats`), and `\d <table>` shows a table's columns.
+
+**If `schema.sql` changes later**, `docker-entrypoint-initdb.d` scripts only
+run against a genuinely empty data directory -- they will NOT re-run just
+because you edited `schema.sql` and restarted the container, since
+`postgres-data` (the named volume) already has data in it by then. To force
+a re-run and pick up schema changes:
+
+```bash
+docker compose down -v
+docker compose up -d
+```
+
+The `-v` removes the named volumes (including `postgres-data`), not just
+the containers -- this deletes any data already loaded into Postgres, so
+only do this in local dev, and re-run the pipeline's eventual Postgres load
+step afterward to repopulate the tables.
 
 ## Stop the cluster
 
@@ -74,9 +137,11 @@ Once a job is running (e.g. from a local PySpark session connecting to
 docker compose down
 ```
 
-This stops and removes the containers (but not the images). Data written
-under this project's `data/` directory persists on the host, since it's a
-bind mount rather than a container volume.
+This stops and removes the containers (but not the images or named
+volumes). Data written under this project's `data/` directory persists on
+the host (it's a bind mount, not a container volume), and Postgres's data
+persists in the `postgres-data` named volume -- add `-v` to also remove
+that volume (see "If schema.sql changes later" above).
 
 ## Notes
 
@@ -101,5 +166,7 @@ bind mount rather than a container volume.
   fail with a `Mkdirs failed` permission error on every write, not just the
   first one, since `chmod` doesn't stick across `overwrite` recreating the
   directory.
-- No transformation/job code lives here yet -- this is cluster infrastructure
-  only.
+- The `postgres` service isn't wired up to the pipeline yet:
+  `src/load.py`'s `write_to_postgres()` is currently a stub
+  (`NotImplementedError`) pending Spark's Postgres JDBC driver setup. The
+  container, schema, and credentials are ready ahead of that.
