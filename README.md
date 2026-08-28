@@ -1,2 +1,11 @@
 # pga-tour-analytics-fullstack
-Full stack application: ingest and transform data using PySpark, load into Postgres with an API layer that serves REACT front end
+A full-stack PGA Tour analytics application: PySpark data pipeline → PostgreSQL → FastAPI → React.
+
+## Status
+Early development — building on the validated PySpark pipeline from [pga-tour-pyspark-pipeline](https://github.com/cjkardokus/pga-tour-pyspark-pipeline).
+
+## Planned Stack
+- **PySpark** — data transformation (reused from the prior project)
+- **PostgreSQL** — persistent data store
+- **FastAPI** — REST API layer
+- **React** — front-end
