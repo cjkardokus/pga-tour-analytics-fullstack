@@ -4,7 +4,7 @@ Local development infrastructure for the pipeline: a minimal Spark
 standalone cluster (one master + one worker, via
 `apache/spark:4.2.0-python3`, matching the `pyspark==4.2.0` pin in
 `requirements.txt`) plus a Postgres container (`postgres:18`) that's the
-pipeline's eventual persistent data store.
+pipeline's persistent data store.
 
 The official `apache/spark` image is used so the driver (host) and cluster
 (containers) run the exact same Spark version.
@@ -51,6 +51,37 @@ See `.env.example` for what each value means:
 - `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` are the credentials the
   official `postgres` image uses to create the database/user on first
   startup -- see the Postgres section below.
+
+The pipeline itself (not Docker Compose) also needs its own `.env`, at the
+**project root** (not this `docker/` directory) -- see the project root's
+`.env.example`. `POSTGRES_DB`/`USER`/`PASSWORD` there must match
+`docker/.env`'s values exactly, since that's what the container was
+actually initialized with:
+
+```bash
+cp ../.env.example ../.env
+```
+
+**Also required, one-time, host-level (not captured in any repo file):**
+add a `/etc/hosts` entry mapping `postgres` to your own loopback address:
+
+```bash
+echo '127.0.0.1 postgres' | sudo tee -a /etc/hosts
+```
+
+Why this is needed: `src/load.py`'s Postgres write uses the hostname
+`postgres` (matching `POSTGRES_HOST` in `.env.example`) so it resolves
+correctly from *inside* the Docker network, where the actual per-partition
+JDBC inserts run (in the `spark-worker` container -- see that file's
+docstring for why). But Spark's driver process runs locally on your host
+(client deploy mode, same as everywhere else in this project) and ALSO
+needs a working connection to Postgres itself, for a table-existence/
+truncate check that happens before any executor work starts. Bare host
+processes don't get Docker's internal DNS, so `postgres` doesn't resolve
+there by default -- the `/etc/hosts` entry above makes it resolve to your
+own loopback instead, which reaches Postgres via the container's published
+port (`5432:5432`). Every clone of this repo needs to add this once; it
+can't be automated via any file this project controls.
 
 ## Start the cluster
 
@@ -128,8 +159,8 @@ docker compose up -d
 
 The `-v` removes the named volumes (including `postgres-data`), not just
 the containers -- this deletes any data already loaded into Postgres, so
-only do this in local dev, and re-run the pipeline's eventual Postgres load
-step afterward to repopulate the tables.
+only do this in local dev, and re-run `python src/pipeline.py` afterward to
+repopulate the tables.
 
 ## Stop the cluster
 
@@ -166,7 +197,11 @@ that volume (see "If schema.sql changes later" above).
   fail with a `Mkdirs failed` permission error on every write, not just the
   first one, since `chmod` doesn't stick across `overwrite` recreating the
   directory.
-- The `postgres` service isn't wired up to the pipeline yet:
-  `src/load.py`'s `write_to_postgres()` is currently a stub
-  (`NotImplementedError`) pending Spark's Postgres JDBC driver setup. The
-  container, schema, and credentials are ready ahead of that.
+- `python src/pipeline.py` writes `player_season_stats` and `courses` to
+  this Postgres container as its last step, via Spark's JDBC writer
+  (`src/load.py`'s `write_to_postgres()`). The Postgres JDBC driver itself
+  doesn't need manual installation -- `src/pipeline.py`'s
+  `build_spark_session()` configures `spark.jars.packages` with the driver
+  coordinate, so Spark downloads (and caches) it automatically. See the
+  `/etc/hosts` requirement above -- the pipeline's Postgres write will fail
+  with a hostname resolution error without it.

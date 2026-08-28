@@ -3,10 +3,10 @@ Output-writing logic for the PGA Tour pipeline.
 
 write_to_files() persists an output DataFrame to disk as both a single flat
 CSV and Parquet -- see its docstring for why both formats, and for the
-temp-dir-then-rename dance the CSV side needs. write_to_postgres() is a
-stub for the eventual Postgres JDBC write: the Postgres container and
-connection details aren't set up yet, so it just documents the intended
-signature and raises NotImplementedError for now.
+temp-dir-then-rename dance the CSV side needs. write_to_postgres() writes a
+DataFrame to a Postgres table via Spark's JDBC writer -- see its docstring
+for why "truncate": "true" is required in `properties` to avoid clobbering
+docker/init/schema.sql's table structure on every run.
 
 See pipeline.py for the entry point that wires extract -> transform -> load
 together.
@@ -58,26 +58,35 @@ def write_to_files(df: DataFrame, name: str, output_dir: str) -> None:
 
 def write_to_postgres(df: DataFrame, table_name: str, jdbc_url: str, properties: dict) -> None:
     """
-    Writes `df` to a Postgres table via Spark's JDBC writer, using overwrite
-    mode.
+    Writes `df` to a Postgres table via Spark's JDBC writer.
 
-    NOT YET IMPLEMENTED -- the Postgres container and connection details
-    aren't set up yet (this is being handled separately, alongside
-    docker/init/schema.sql). Once that lands, this should look roughly
-    like:
+    `jdbc_url` looks like "jdbc:postgresql://<host>:<port>/<database>"; see
+    pipeline.py for how it's built from POSTGRES_HOST/PORT/DB env vars.
+    `properties` must carry at least {"user": ..., "password": ...,
+    "driver": "org.postgresql.Driver"} -- see pipeline.py for how it's
+    built from POSTGRES_USER/PASSWORD env vars. The driver class itself
+    doesn't need to be manually installed: pipeline.py's build_spark_session()
+    configures spark.jars.packages with the Postgres JDBC driver coordinate,
+    so Spark downloads (and caches) the jar automatically.
 
-        df.write.jdbc(url=jdbc_url, table=table_name, mode="overwrite", properties=properties)
-
-    `jdbc_url` is expected to look like
-    "jdbc:postgresql://<host>:<port>/<database>", and `properties` should
-    carry at least {"user": ..., "password": ..., "driver":
-    "org.postgresql.Driver"}. The Postgres JDBC driver jar will also need to
-    be on Spark's classpath (spark.jars / spark.jars.packages) for this to
-    work -- it isn't bundled with the apache/spark image.
-
-    Note "overwrite" mode here means DROP + recreate the target table on
-    every run (matching the write_to_files() semantics above), not an
-    upsert -- schema.sql's CREATE TABLE IF NOT EXISTS is only there for the
-    very first run before any data exists.
+    properties carrying "truncate": "true" alongside mode="overwrite" is
+    deliberate, not incidental: Spark's JDBC writer's mode="overwrite" DROPS
+    and RECREATES the target table by default, using a schema inferred
+    purely from the DataFrame -- which would destroy schema.sql's actual table
+    definition (course_id SERIAL PRIMARY KEY + course UNIQUE for courses;
+    the composite (player_id, season) PRIMARY KEY for player_season_stats;
+    both tables' indexes) on the very first pipeline run after
+    `docker compose up` creates them. Concretely, `courses` would lose its
+    course_id surrogate key entirely, since the course_difficulty DataFrame
+    doesn't have a course_id column to infer one from -- the whole point of
+    a DB-generated surrogate key is that Spark never has to know about it.
+    Passing properties={"truncate": "true", ...} instead makes Spark issue
+    TRUNCATE + INSERT when mode="overwrite" and the table already exists,
+    which clears all rows but leaves schema.sql's table structure (columns,
+    types, constraints, indexes) completely intact across every run.
+    truncate depends on the table already existing with the right
+    structure, which is exactly what schema.sql's CREATE TABLE IF NOT
+    EXISTS guarantees on container startup -- see docker/init/schema.sql
+    and docker/README.md.
     """
-    raise NotImplementedError("Postgres JDBC write not yet configured")
+    df.write.jdbc(url=jdbc_url, table=table_name, mode="overwrite", properties=properties)
