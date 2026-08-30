@@ -110,6 +110,21 @@ else under the `/api/v1/` prefix (see `api/config.py`). `/docs` is the
 source of truth for the current endpoint list as more get added on later
 branches, rather than duplicating it here where it'd go stale.
 
+**Logging and error handling:** every request logs one line (method,
+path, status code, duration) via the `api.request` logger, and the
+startup DB check logs through the same consistent format (see
+`api/logging_config.py`) -- plain text, not JSON, which is intentionally
+enough at this project's size. Any exception not already handled by
+FastAPI's own 404/422 paths (an unexpected bug, a dropped DB connection
+mid-request, etc.) is caught by a global handler in `api/main.py`: the
+full exception is logged server-side, but the client only ever gets a
+fixed `{"detail": "Internal server error"}` with a 500 -- never raw SQL,
+a stack trace, or a file path. `tests/test_error_handling.py` verifies
+both halves of that by deliberately pointing a request at an unreachable
+database. Both the DB connection attempt itself and any query issued
+against it are timeout-bounded (`api/database.py`) so a hung Postgres
+fails a request fast rather than hanging it indefinitely.
+
 ### Running tests
 
 The test suite (`tests/`) runs against its own dedicated `postgres-test`
