@@ -35,3 +35,29 @@ extract (`src/extract.py`) -> transform (`src/transform.py`) -> load
 (`src/load.py`) stages in sequence, writing the aggregated output tables to
 both `data/processed/` (CSV + Parquet) and Postgres (`player_season_stats`
 and `courses`).
+
+### Running the API locally
+
+The `api/` FastAPI layer reads Postgres credentials from the same
+project-root `.env` the pipeline uses (see `.env.example`), so that file
+needs to exist first -- but the API itself runs as a plain local Python
+process, not against the Spark cluster, so only the `postgres` container
+needs to be up:
+
+```bash
+cd docker && docker compose up -d postgres && cd ..
+```
+
+Then, from the project root, in a virtual environment:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate      # venv\Scripts\activate on Windows
+pip install -r requirements.txt
+uvicorn api.main:app --reload
+```
+
+This serves the API at `http://localhost:8000` -- `GET /health` for a
+liveness check, `/docs` for the interactive Swagger UI, and everything
+else under the `/api/v1/` prefix (see `api/config.py`) as routes get added
+on later branches.
