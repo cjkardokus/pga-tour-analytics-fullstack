@@ -27,7 +27,31 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from api.config import DATABASE_URL
 
-engine = create_engine(DATABASE_URL)
+# connect_args below are libpq/psycopg2-level connection parameters --
+# applied to every new connection the pool opens, not per-query. Both
+# exist so a request fails fast with a clear error if Postgres is
+# unresponsive, rather than hanging indefinitely (or for however long the
+# OS's own TCP timeout happens to be, which can be minutes):
+#
+#   - connect_timeout (seconds): caps how long libpq waits to establish
+#     the TCP connection itself. A few seconds is plenty for a local/
+#     same-network Postgres -- if it takes longer than that, something is
+#     actually wrong (container down, network partition), not just slow.
+#   - options="-c statement_timeout=...": a libpq startup option, applied
+#     server-side as a per-session GUC on every connection this engine
+#     opens. Caps how long Postgres will run ANY query issued over that
+#     connection before aborting it. Every query this API issues is a read
+#     against a small, already-aggregated table (see api/routers/*.py) --
+#     none should legitimately take anywhere near this long, so a runaway
+#     or blocked query fails fast instead of holding a connection (and the
+#     request) open indefinitely.
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={
+        "connect_timeout": 5,
+        "options": "-c statement_timeout=5000",  # milliseconds
+    },
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
