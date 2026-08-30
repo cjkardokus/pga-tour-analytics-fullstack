@@ -3,8 +3,9 @@ A full-stack PGA Tour analytics application: PySpark data pipeline → PostgreSQ
 
 ## Status
 The PySpark pipeline and its Postgres store are complete and working
-end-to-end; the FastAPI layer is scaffolded (app, DB connection, CORS,
-versioning convention) but has no business-logic endpoints yet, and the
+end-to-end; the FastAPI layer has its foundation in place (app, DB
+connection, CORS, versioning convention) plus its first business-logic
+resource (`courses`), with more endpoints to follow the same pattern. The
 React front-end hasn't been started.
 
 ## Stack
@@ -16,9 +17,10 @@ React front-end hasn't been started.
   `docker/init/schema.sql` (`courses`, `player_season_stats`), run via
   Docker Compose alongside the Spark cluster, written to by the pipeline's
   JDBC load step
-- **FastAPI** — REST API layer 🚧 scaffolded — app, DB session handling,
-  CORS, and the `/api/v1` versioning convention are in place (`api/`); no
-  business-logic routes yet
+- **FastAPI** — REST API layer 🚧 in progress — foundation (app, DB
+  session handling, CORS, `/api/v1` versioning) plus a first
+  business-logic resource, `courses` (`api/routers/courses.py`); more
+  resources (players, leaderboards) to follow the same pattern
 - **React** — front-end ⬜ not started
 
 ## Setup
@@ -70,5 +72,6 @@ uvicorn api.main:app --reload
 
 This serves the API at `http://localhost:8000` -- `GET /health` for a
 liveness check, `/docs` for the interactive Swagger UI, and everything
-else under the `/api/v1/` prefix (see `api/config.py`) as routes get added
-on later branches.
+else under the `/api/v1/` prefix (see `api/config.py`). `/docs` is the
+source of truth for the current endpoint list as more get added on later
+branches, rather than duplicating it here where it'd go stale.
