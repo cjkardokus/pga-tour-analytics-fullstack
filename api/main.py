@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import API_V1_PREFIX, CORS_ORIGINS
 from api.database import check_connection
-from api.routers import courses
+from api.routers import courses, players
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +72,7 @@ app.add_middleware(
 # afterward.
 api_v1_router = APIRouter(prefix=API_V1_PREFIX)
 api_v1_router.include_router(courses.router)
+api_v1_router.include_router(players.router)
 app.include_router(api_v1_router)
 
 
