@@ -2,13 +2,24 @@
 A full-stack PGA Tour analytics application: PySpark data pipeline → PostgreSQL → FastAPI → React.
 
 ## Status
-Early development — building on the validated PySpark pipeline from [pga-tour-pyspark-pipeline](https://github.com/cjkardokus/pga-tour-pyspark-pipeline).
+The PySpark pipeline and its Postgres store are complete and working
+end-to-end; the FastAPI layer is scaffolded (app, DB connection, CORS,
+versioning convention) but has no business-logic endpoints yet, and the
+React front-end hasn't been started.
 
-## Planned Stack
-- **PySpark** — data transformation (reused from the prior project)
-- **PostgreSQL** — persistent data store
-- **FastAPI** — REST API layer
-- **React** — front-end
+## Stack
+- **PySpark** — data transformation (reused from the prior
+  [pga-tour-pyspark-pipeline](https://github.com/cjkardokus/pga-tour-pyspark-pipeline)
+  project) ✅ implemented — `src/extract.py` → `transform.py` → `load.py`,
+  orchestrated by `src/pipeline.py`
+- **PostgreSQL** — persistent data store ✅ implemented — schema in
+  `docker/init/schema.sql` (`courses`, `player_season_stats`), run via
+  Docker Compose alongside the Spark cluster, written to by the pipeline's
+  JDBC load step
+- **FastAPI** — REST API layer 🚧 scaffolded — app, DB session handling,
+  CORS, and the `/api/v1` versioning convention are in place (`api/`); no
+  business-logic routes yet
+- **React** — front-end ⬜ not started
 
 ## Setup
 
