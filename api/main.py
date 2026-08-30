@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import API_V1_PREFIX, CORS_ORIGINS
 from api.database import check_connection
+from api.routers import courses
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO)
@@ -58,15 +59,19 @@ app.add_middleware(
 # --------------------------------------------------------------------------
 # Routers
 # --------------------------------------------------------------------------
-# All business-logic routes live under /api/v1, established now -- via this
-# router, included with zero routes on it -- even though api/routers/ is
-# still empty, so nothing is ever added un-prefixed and needs a breaking
-# move to add versioning later. Future router modules (api/routers/*.py)
-# attach here, e.g.:
+# All business-logic routes live under /api/v1 -- established from the
+# first endpoint (api/routers/courses.py) so nothing is ever added
+# un-prefixed and needs a breaking move to add versioning later. Future
+# router modules (api/routers/*.py) attach to api_v1_router the same way,
+# e.g. `api_v1_router.include_router(players.router)`.
 #
-#   from api.routers import courses
-#   api_v1_router.include_router(courses.router)
+# Order matters here: APIRouter.include_router() copies the target
+# router's routes at call time, not lazily, so every include_router() onto
+# api_v1_router below has to happen BEFORE api_v1_router itself is included
+# into app -- reversing that order would silently drop whatever's included
+# afterward.
 api_v1_router = APIRouter(prefix=API_V1_PREFIX)
+api_v1_router.include_router(courses.router)
 app.include_router(api_v1_router)
 
 
