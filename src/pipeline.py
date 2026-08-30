@@ -4,8 +4,9 @@ Entry point for the PGA Tour PySpark pipeline.
 Orchestrates extract -> transform -> load: reads the raw Kaggle export
 (extract.extract_raw_data), cleans it and builds the two aggregated output
 tables (transform.clean_raw_data / build_player_season_stats /
-build_course_difficulty), then writes them out to both data/processed/
-(load.write_to_files) and Postgres (load.write_to_postgres).
+build_course_difficulty), then writes them to Postgres (load.write_to_postgres,
+always) and optionally to data/processed/ as CSV and/or Parquet
+(load.write_csv / load.write_parquet, opt-in -- see --output-formats below).
 
 Run against the local Docker Spark cluster AND the Postgres container
 (docker/docker-compose.yml must already be up), with a project-root `.env`
@@ -14,12 +15,21 @@ docker/.env, since that's what the Postgres container was actually
 initialized with):
 
     python src/pipeline.py
+    python src/pipeline.py --output-formats csv
+    python src/pipeline.py --output-formats csv,parquet
+
+Postgres is always written, regardless of --output-formats -- it's this
+pipeline's real downstream destination (see api/, which reads from it, not
+from data/processed/). --output-formats controls only the additional local
+file export, off by default; see parse_args() below for why each format
+exists at all.
 
 The driver runs locally on the host and submits work to spark-master /
 spark-worker over spark://localhost:7077. See PROJECT_DATA_DIR below for why
 a single absolute path works for both the driver and the executors here.
 """
 
+import argparse
 import os
 from pathlib import Path
 
@@ -27,8 +37,10 @@ from dotenv import load_dotenv
 from pyspark.sql import SparkSession
 
 from extract import extract_raw_data
-from load import write_to_files, write_to_postgres
+from load import write_csv, write_parquet, write_to_postgres
 from transform import build_course_difficulty, build_player_season_stats, clean_raw_data
+
+VALID_OUTPUT_FORMATS = frozenset({"csv", "parquet"})
 
 # --------------------------------------------------------------------------
 # Paths
@@ -112,9 +124,49 @@ def build_postgres_properties() -> dict:
     }
 
 
+def parse_output_formats(raw: str) -> frozenset[str]:
+    """
+    argparse `type=` callback for --output-formats: splits/validates a
+    comma-separated list against VALID_OUTPUT_FORMATS and returns the
+    resulting set. Raising argparse.ArgumentTypeError here, rather than
+    validating after parse_args() returns, is what gets an invalid value
+    (e.g. --output-formats xml) argparse's own clean "error: argument
+    --output-formats: ..." message and a normal exit, instead of an
+    unhandled exception deeper in main().
+    """
+    requested = {fmt.strip() for fmt in raw.split(",") if fmt.strip()}
+    invalid = requested - VALID_OUTPUT_FORMATS
+    if invalid:
+        raise argparse.ArgumentTypeError(
+            f"invalid output format(s): {', '.join(sorted(invalid))} -- choices are: csv, parquet"
+        )
+    return frozenset(requested)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    parser.add_argument(
+        "--output-formats",
+        type=parse_output_formats,
+        default=frozenset(),
+        metavar="csv,parquet",
+        help=(
+            "Comma-separated local file format(s) to additionally write to "
+            "data/processed/ -- csv and/or parquet. Postgres is always "
+            "written regardless of this flag; omit it entirely for no file "
+            "output at all (the default). csv is a quick-inspection "
+            "convenience (open in a spreadsheet tool, or pd.read_csv() in "
+            "a scratch notebook) without psql or the API running. parquet "
+            "demonstrates columnar storage for analytical workloads; "
+            "nothing in this pipeline currently reads either back."
+        ),
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
-    processed_dir = PROJECT_DATA_DIR / "processed"
-    processed_dir.mkdir(parents=True, exist_ok=True)
+    args = parse_args()
+    output_formats = args.output_formats
 
     jdbc_url = build_postgres_jdbc_url()
     jdbc_properties = build_postgres_properties()
@@ -141,9 +193,21 @@ def main() -> None:
         print(f"\ncourse_difficulty row count: {course_difficulty.count()}")
         course_difficulty.show(10, truncate=False)
 
-        write_to_files(player_season_stats, "player_season_stats", str(processed_dir))
-        write_to_files(course_difficulty, "course_difficulty", str(processed_dir))
-        print("\nWrote player_season_stats and course_difficulty to data/processed/ (csv + parquet).")
+        if output_formats:
+            processed_dir = PROJECT_DATA_DIR / "processed"
+            processed_dir.mkdir(parents=True, exist_ok=True)
+            if "csv" in output_formats:
+                write_csv(player_season_stats, "player_season_stats", str(processed_dir))
+                write_csv(course_difficulty, "course_difficulty", str(processed_dir))
+            if "parquet" in output_formats:
+                write_parquet(player_season_stats, "player_season_stats", str(processed_dir))
+                write_parquet(course_difficulty, "course_difficulty", str(processed_dir))
+            print(
+                f"\nWrote player_season_stats and course_difficulty to data/processed/ "
+                f"({', '.join(sorted(output_formats))})."
+            )
+        else:
+            print("\nNo --output-formats given -- skipping data/processed/ file output.")
 
         # Table names match schema.sql: course_difficulty's output goes to
         # the "courses" table -- the name is intentionally different, see

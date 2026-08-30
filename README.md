@@ -103,8 +103,12 @@ python src/pipeline.py
 `src/pipeline.py` is the entry point: it orchestrates the pipeline's
 extract (`src/extract.py`) -> transform (`src/transform.py`) -> load
 (`src/load.py`) stages in sequence, writing the aggregated output tables to
-both `data/processed/` (CSV + Parquet) and Postgres (`player_season_stats`
-and `courses`).
+Postgres (`player_season_stats` and `courses`) -- Postgres is this
+project's real downstream destination, and this write always happens.
+Local file output to `data/processed/` is opt-in and off by default: add
+`--output-formats csv`, `--output-formats parquet`, or
+`--output-formats csv,parquet` to also write one or both (`python
+src/pipeline.py --help` explains why each format exists).
 
 ### Running the API locally
 
