@@ -76,10 +76,16 @@ API_V1_PREFIX = "/api/v1"
 # --------------------------------------------------------------------------
 # CORS
 # --------------------------------------------------------------------------
-# The eventual React front-end's dev-server origin. 3000 is the Create
-# React App default; Vite's default is 5173. Neither app exists yet, so
-# this is a placeholder -- confirm which tool the front-end actually uses
-# and update this (or switch to reading it from an env var) once it does.
-CORS_ORIGINS = [
-    "http://localhost:3000",
-]
+# Env-driven rather than hardcoded, so adding a future deployed front-end
+# origin (or changing the dev server's port) is a .env edit, not a code
+# change + redeploy. CORS_ORIGINS is a comma-separated string (see
+# .env.example) -- CORSMiddleware wants a list, so split on "," and strip
+# whitespace around each entry (a stray space after a comma, e.g.
+# "http://a, http://b", would otherwise become the literal, never-matching
+# origin " http://b").
+#
+# Defaults to the Create React App dev server's default port (3000) if
+# unset, so local dev still works with zero .env changes -- Vite's default
+# is 5173 instead; whichever tool the front-end actually ends up using,
+# override via .env rather than editing this default.
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")]
