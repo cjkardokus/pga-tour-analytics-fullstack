@@ -1,15 +1,18 @@
 """
 Output-writing logic for the PGA Tour pipeline.
 
-write_to_files() persists an output DataFrame to disk as both a single flat
-CSV and Parquet -- see its docstring for why both formats, and for the
-temp-dir-then-rename dance the CSV side needs. write_to_postgres() writes a
-DataFrame to a Postgres table via Spark's JDBC writer -- see its docstring
-for why "truncate": "true" is required in `properties` to avoid clobbering
-docker/init/schema.sql's table structure on every run.
+Postgres (write_to_postgres()) is this pipeline's real downstream
+destination, and always gets written. write_csv()/write_parquet() are local
+file exports to data/processed/ -- opt-in, off by default, selected via
+pipeline.py's --output-formats flag. Each exists for a different, narrow
+reason (see its own docstring below), not as a leftover default: this
+project was originally scaffolded from a prior Power-BI-focused project
+where CSV was the actual consumption path, and both formats sat as
+unconditional, unexplained-by-default output long after Postgres became
+the real destination.
 
 See pipeline.py for the entry point that wires extract -> transform -> load
-together.
+together, and for --output-formats' parsing/validation.
 """
 
 import shutil
@@ -18,19 +21,17 @@ from pathlib import Path
 from pyspark.sql import DataFrame
 
 
-def write_to_files(df: DataFrame, name: str, output_dir: str) -> None:
+def write_csv(df: DataFrame, name: str, output_dir: str) -> None:
     """
-    Writes `df` to `output_dir` as both Parquet and a single flat CSV,
-    named `{name}.parquet` / `{name}.csv`.
+    Writes `df` to `output_dir` as a single flat CSV, `{name}.csv`.
 
-    Parquet is the "proper" output here -- compressed, typed, splittable
-    columnar storage, and what a real downstream Spark/warehouse job would
-    consume. CSV is written alongside it purely for convenience (a quick
-    open in Excel/Power BI).
+    Why this format exists at all: quick manual inspection -- opening in a
+    spreadsheet tool, or a scratch `pd.read_csv()` -- without needing psql
+    or the API running. Nothing in this pipeline reads this file back.
 
     Spark's CSV writer always produces a *directory* of part-files, even
     forced to one partition via coalesce(1) -- there's no writer option that
-    produces a bare .csv file directly. So we write CSV to a throwaway
+    produces a bare .csv file directly. So we write to a throwaway
     directory and then promote the single part-file to a flat filename
     ourselves, cleaning up Spark's directory litter (_SUCCESS, checksums,
     etc.) afterward. coalesce(1) is safe here specifically because these are
@@ -38,8 +39,6 @@ def write_to_files(df: DataFrame, name: str, output_dir: str) -> None:
     dataset would kill parallelism.
     """
     output_path = Path(output_dir)
-    df.write.mode("overwrite").parquet(f"{output_path}/{name}.parquet")
-
     tmp_name = f"_{name}_csv_tmp"
     df.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{output_path}/{tmp_name}")
 
@@ -54,6 +53,19 @@ def write_to_files(df: DataFrame, name: str, output_dir: str) -> None:
         final_path.unlink()
     part_file.rename(final_path)
     shutil.rmtree(tmp_dir)
+
+
+def write_parquet(df: DataFrame, name: str, output_dir: str) -> None:
+    """
+    Writes `df` to `output_dir` as Parquet, `{name}.parquet`.
+
+    Why this format exists at all: demonstrates compressed, typed,
+    splittable columnar storage for analytical workloads -- the kind of
+    output a real downstream Spark/warehouse job would consume. Nothing in
+    this pipeline currently reads this file back; Postgres is the actual
+    destination (see write_to_postgres() below).
+    """
+    df.write.mode("overwrite").parquet(f"{output_dir}/{name}.parquet")
 
 
 def write_to_postgres(df: DataFrame, table_name: str, jdbc_url: str, properties: dict) -> None:
