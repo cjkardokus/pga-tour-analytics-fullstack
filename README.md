@@ -27,13 +27,27 @@ the React front-end hasn't been started.
   `leaderboards` (`api/routers/`)
 - **React** — front-end ⬜ not started
 
+## Prerequisites
+
+- **Python 3.14+** -- matches this project's `venv` and the version
+  `.github/workflows/tests.yml` pins CI to.
+- **Docker**, with Compose -- runs the Spark cluster and both Postgres
+  containers (see `docker/README.md`).
+- **A Unix-like shell: native Linux, macOS, or WSL2 on Windows.** Setup
+  below relies on `id -u`/`id -g` and a `/etc/hosts` edit, and
+  `docker-compose.yml` bind-mounts the host's own `/etc/passwd`/`/etc/group`
+  into the Spark containers -- confirmed working on native Linux and
+  WSL2, unverified on macOS (see that file's top comment), and not
+  supported as written on plain Windows without WSL. `docker/README.md`'s
+  Spark memory sizing also assumes a WSL2-style RAM cap; adjust
+  `mem_limit`/`cpus` in `docker-compose.yml` if your host has more to work
+  with.
+
 ## Setup
 
 The PySpark pipeline runs against a local Docker Spark cluster and a
-Postgres container -- see `docker/README.md` for full one-time setup
-(including a required host-level step for the Postgres JDBC write) and
-starting/stopping the cluster. In short, two `.env` files are needed before
-first run:
+Postgres container -- see `docker/README.md` for full one-time setup and
+starting/stopping the cluster. In short, before first run:
 
 - `docker/.env` (from `docker/.env.example`) -- configures the Docker
   Compose cluster itself (Spark bind-mount paths, Postgres credentials).
@@ -43,6 +57,13 @@ first run:
   by the API only (see "Running the API locally" below) -- defaults to
   `http://localhost:3000` if unset, so it's safe to leave out until a
   front-end origin actually needs adding.
+- **A one-time host-level step, easy to miss:** a `/etc/hosts` entry
+  mapping `postgres` to your own loopback address, required for the
+  pipeline's Postgres write to succeed. This isn't a file in this repo --
+  see `docker/README.md`'s "One-time setup" section for the exact command
+  and why it's needed. Skip it and `python src/pipeline.py` below fails
+  partway through with a hostname resolution error, which is a confusing
+  thing to debug blind if you don't already know this step exists.
 
 ### Getting the data
 
