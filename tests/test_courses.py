@@ -49,7 +49,10 @@ def test_get_course_by_id(client):
     assert response.status_code == 200
 
     body = response.json()
-    assert body["courseId"] == 9002
+    # TEMPORARY: deliberately wrong value, to verify CI actually catches
+    # and reports a failing test. Reverted in the very next commit on
+    # this same branch once the failing run is confirmed.
+    assert body["courseId"] == 999999
     assert body["course"] == "Pebble Test Beach"
     assert body["difficultyRank"] == 1
     assert body["averageStrokesGained"] == 1.0
