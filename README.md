@@ -3,10 +3,10 @@ A full-stack PGA Tour analytics application: PySpark data pipeline → PostgreSQ
 
 ## Status
 The PySpark pipeline and its Postgres store are complete and working
-end-to-end; the FastAPI layer has its foundation in place (app, DB
-connection, CORS, versioning convention) plus two business-logic
-resources so far (`courses`, `players`), with more endpoints to follow
-the same pattern. The React front-end hasn't been started.
+end-to-end. The FastAPI layer's data-facing surface is now complete too
+-- `courses`, `players`, and `leaderboards` cover everything in the
+current schema -- though the API as a whole still has no auth, tests, or
+deployment story yet. The React front-end hasn't been started.
 
 ## Stack
 - **PySpark** — data transformation (reused from the prior
@@ -17,10 +17,10 @@ the same pattern. The React front-end hasn't been started.
   `docker/init/schema.sql` (`courses`, `player_season_stats`), run via
   Docker Compose alongside the Spark cluster, written to by the pipeline's
   JDBC load step
-- **FastAPI** — REST API layer 🚧 in progress — foundation (app, DB
-  session handling, CORS, `/api/v1` versioning) plus two business-logic
-  resources so far, `courses` and `players` (`api/routers/`); more
-  resources (e.g. leaderboards) to follow the same pattern
+- **FastAPI** — REST API layer ✅ data-facing endpoints implemented —
+  foundation (app, DB session handling, CORS, `/api/v1` versioning) plus
+  three resources covering the full schema: `courses`, `players`,
+  `leaderboards` (`api/routers/`)
 - **React** — front-end ⬜ not started
 
 ## Setup
