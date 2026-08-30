@@ -2,9 +2,8 @@
 Cleaning and aggregation logic for the PGA Tour pipeline.
 
 Takes the raw DataFrame produced by extract.extract_raw_data(), applies the
-cleaning steps identified during prior pandas exploration
-(notebooks/initial_exploration.ipynb), and builds two aggregated output
-tables: player_season_stats and course_difficulty.
+cleaning steps identified during prior exploratory analysis, and builds two
+aggregated output tables: player_season_stats and course_difficulty.
 
 See pipeline.py for the entry point that wires extract -> transform -> load
 together, and load.py for the output-writing logic.
