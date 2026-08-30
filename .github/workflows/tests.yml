@@ -1,0 +1,114 @@
+name: Tests
+
+# Bonus finding (3.5) from the operational-hardening review, not part of
+# the original four-branch plan: runs the pytest suite (tests/) on every
+# push to main and every PR targeting it, so a broken test is caught
+# before merge rather than discovered later.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # A Postgres service container -- NOT the full docker-compose stack.
+    # The test suite (tests/) only ever talks to postgres-test (see
+    # tests/conftest.py); it never touches the dev `postgres` service or
+    # the Spark cluster, so there's nothing for either of those to do
+    # here. Same image tag as docker-compose.yml's postgres-test service
+    # (postgres:18) and the same DB/user/password it hardcodes -- see
+    # that service's own comment for why hardcoding is fine here (never
+    # holds anything but this suite's own seeded/truncated fixture rows).
+    services:
+      postgres-test:
+        image: postgres:18
+        env:
+          POSTGRES_DB: pga_tour_analytics_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          # GitHub Actions maps this straight to the runner's own
+          # localhost (this job runs directly on the runner, not inside
+          # a container), so tests/conftest.py's TEST_DATABASE_URL below
+          # can just use localhost:5432 -- no service-name DNS resolution
+          # needed the way docker-compose's spark-network requires.
+          - 5432:5432
+        # Gates every step below on the container actually being ready to
+        # accept connections, not just "started" -- pg_isready is the same
+        # check docker-compose.yml's own postgres-test healthcheck uses.
+        options: >-
+          --health-cmd "pg_isready -U test -d pga_tour_analytics_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches this project's actual interpreter (see venv/pyvenv.cfg
+          # locally) -- pins the minor version, not a full patch, so this
+          # workflow picks up 3.14.x patch releases automatically.
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-test.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-test.txt
+
+      # Applies docker/init/schema.sql to the service container as an
+      # explicit step, deliberately NOT via Postgres's own
+      # /docker-entrypoint-initdb.d init-script mechanism (which
+      # docker-compose.yml's real postgres/postgres-test services rely
+      # on): GitHub Actions starts `services:` containers before ANY job
+      # step runs, checkout included, so a volume mount pointing at this
+      # checked-out repo's docker/init/ would be mounting a path that
+      # doesn't exist yet at container-start time -- Postgres's init-script
+      # scan would find nothing there and silently create the tables 0
+      # times, not once. Running it explicitly, after checkout, sidesteps
+      # that ordering problem entirely. Uses psycopg2 (already a
+      # requirements.txt dependency, installed above -- no extra system
+      # package like a `psql` client binary needed) rather than a shell
+      # tool. schema.sql itself is written with CREATE TABLE/INDEX IF NOT
+      # EXISTS (see the file), so this is safe to run against a database
+      # that's always freshly empty here anyway.
+      - name: Apply test database schema
+        run: |
+          python - <<'PY'
+          import psycopg2
+
+          with open("docker/init/schema.sql") as f:
+              schema_sql = f.read()
+
+          conn = psycopg2.connect(
+              host="localhost", port=5432,
+              dbname="pga_tour_analytics_test", user="test", password="test",
+          )
+          try:
+              conn.autocommit = True
+              with conn.cursor() as cur:
+                  cur.execute(schema_sql)
+          finally:
+              conn.close()
+          PY
+
+      - name: Run tests
+        env:
+          # tests/conftest.py's TEST_DATABASE_URL default
+          # (localhost:5433, matching docker-compose.yml's local
+          # host-port mapping) doesn't apply here -- there's no
+          # docker-compose involved, just the bare service container
+          # above on its own default port 5432. Overriding this env var
+          # is exactly the escape hatch conftest.py's docstring describes
+          # it for ("Overridable via env var for CI/alternate setups").
+          TEST_DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/pga_tour_analytics_test
+        run: pytest -v

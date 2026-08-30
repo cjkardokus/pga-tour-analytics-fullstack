@@ -1,4 +1,6 @@
 # pga-tour-analytics-fullstack
+[![Tests](https://github.com/cjkardokus/pga-tour-analytics-fullstack/actions/workflows/tests.yml/badge.svg)](https://github.com/cjkardokus/pga-tour-analytics-fullstack/actions/workflows/tests.yml)
+
 A full-stack PGA Tour analytics application: PySpark data pipeline → PostgreSQL → FastAPI → React.
 
 ## Status
@@ -153,3 +155,16 @@ them down after, so tests are independent of each other and of run order.
 `postgres-test`'s data directory is tmpfs-backed, so a plain
 `docker compose stop postgres-test` (or a machine restart) leaves nothing
 behind to clean up later.
+
+### CI
+
+This same suite runs automatically on every push to `main` and every PR
+targeting it -- see `.github/workflows/tests.yml` (the badge at the top
+of this README reflects the latest run). It uses a plain Postgres
+*service container* rather than the full `docker compose` stack above --
+the test suite never touches the dev `postgres` service or the Spark
+cluster, so there's nothing for either to do in CI -- with
+`docker/init/schema.sql` applied as an explicit step rather than via
+Postgres's own init-script mechanism, since GitHub Actions starts service
+containers before the repo is even checked out (see the workflow file's
+own comments for why that rules out a volume-mounted init script here).
