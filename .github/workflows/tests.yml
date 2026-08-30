@@ -111,4 +111,22 @@ jobs:
           # is exactly the escape hatch conftest.py's docstring describes
           # it for ("Overridable via env var for CI/alternate setups").
           TEST_DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/pga_tour_analytics_test
+          # POSTGRES_DB/USER/PASSWORD: NOT used by the test suite itself --
+          # every test queries through TEST_DATABASE_URL above, via
+          # conftest.py's get_db override, never api.database's own
+          # module-level `engine`. But api/config.py reads these three via
+          # bare os.environ[...] unconditionally AT IMPORT TIME (it has no
+          # .env file to fall back to here, correctly -- .env is
+          # gitignored, never committed), and tests/conftest.py imports
+          # api.database (hence api.config) before it ever gets a chance
+          # to install that override. Without these set, collection itself
+          # fails with a KeyError before a single test runs -- caught by
+          # actually running this workflow on GitHub, not by local
+          # verification, since a real .env already existed on the machine
+          # used for that dry run. Placeholder values only; SQLAlchemy's
+          # create_engine() is lazy and never actually opens a connection
+          # with them.
+          POSTGRES_DB: unused_in_ci
+          POSTGRES_USER: unused_in_ci
+          POSTGRES_PASSWORD: unused_in_ci
         run: pytest -v
