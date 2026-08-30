@@ -39,7 +39,36 @@ first run:
   itself to connect to Postgres. `POSTGRES_DB`/`USER`/`PASSWORD` here must
   match `docker/.env`'s values exactly.
 
-Once the cluster is up and both `.env` files are in place:
+### Getting the data
+
+`src/extract.py` reads from `data/raw/pga_tour_raw.csv`, which is
+gitignored (not committed -- see `.gitignore`) and has to be downloaded
+before the pipeline's first run. It's the
+[pga-tour-golf-data-20152022](https://www.kaggle.com/datasets/robikscube/pga-tour-golf-data-20152022)
+dataset on Kaggle. The `kaggle` CLI (one of `requirements.txt`'s runtime
+dependencies -- see "Running the API locally" below for the virtualenv
+setup, or `pip install kaggle` on its own to fetch the data ahead of that)
+can fetch it directly:
+
+```bash
+kaggle datasets download -d robikscube/pga-tour-golf-data-20152022 -p data/raw --unzip
+mv "data/raw/ASA All PGA Raw Data - Tourn Level.csv" data/raw/pga_tour_raw.csv
+```
+
+This needs a one-time Kaggle API token first, if you don't already have
+one: an API token generated from your Kaggle account settings, saved to
+`~/.kaggle/access_token`. See
+[Kaggle's API docs](https://www.kaggle.com/docs/api) for how to generate
+one.
+
+The dataset itself is published under that longer filename (`ASA All PGA
+Raw Data - Tourn Level.csv`) -- the CLI has no rename option, so the `mv`
+above is required, not optional: `src/extract.py` reads the fixed path
+`data/raw/pga_tour_raw.csv` and won't find the file under its
+as-downloaded name.
+
+Once the cluster is up, both `.env` files are in place, and the raw CSV is
+downloaded:
 
 ```bash
 python src/pipeline.py
@@ -91,9 +120,12 @@ anything but the tests' own seeded rows):
 cd docker && docker compose up -d postgres-test && cd ..
 ```
 
-Then, with the virtualenv from above active:
+Then, with the virtualenv from above active, install the test-only
+dependencies on top of `requirements.txt` (`requirements-test.txt` pulls
+that in itself, so this one line covers both):
 
 ```bash
+pip install -r requirements-test.txt
 pytest
 ```
 

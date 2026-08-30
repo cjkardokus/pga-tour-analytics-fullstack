@@ -1,0 +1,19 @@
+# Test-only dependencies for the pytest suite (tests/), on top of
+# requirements.txt's runtime set (`-r` below pulls that in first). Install
+# with:
+#
+#   pip install -r requirements.txt -r requirements-test.txt
+#
+# Resolved the same way as requirements.txt: a clean venv seeded with
+# requirements.txt plus this project's two direct test dependencies
+# (pytest, httpx -- the latter needed by fastapi.testclient.TestClient,
+# see tests/conftest.py), then `pip freeze`'d and diffed against
+# requirements.txt to isolate just the new packages below.
+-r requirements.txt
+
+httpcore==1.0.9
+httpx==0.28.1
+iniconfig==2.3.0
+pluggy==1.6.0
+Pygments==2.21.0
+pytest==9.1.1
