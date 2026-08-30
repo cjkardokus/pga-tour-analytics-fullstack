@@ -168,6 +168,54 @@ services:
     networks:
       - spark-network
 
+  # Dedicated Postgres instance for the API test suite (tests/) -- a
+  # separate CONTAINER, not just a second database on the `postgres`
+  # service above, specifically so the test suite's isolation from real
+  # pipeline-generated data can be verified the obvious way: stop this
+  # container's sibling (`docker compose stop postgres`) and the tests
+  # still pass untouched, because they were never talking to it. A second
+  # database on the same server would technically also be isolated, but
+  # wouldn't offer that same easy, visible proof.
+  #
+  # Credentials are hardcoded here rather than sourced from docker/.env:
+  # this database never holds anything but tests/conftest.py's own seeded
+  # fixture rows, recreated fresh on every test run, so there's nothing
+  # sensitive to gate behind env-var indirection -- and hardcoding means
+  # `docker compose up -d postgres-test` works out of the box with no
+  # setup step, which is exactly what a test dependency should do.
+  #
+  # /var/lib/postgresql is tmpfs, not a named volume: every container
+  # (re)start begins from a genuinely empty data directory, so
+  # docker-entrypoint-initdb.d (the same ./init/schema.sql the real
+  # `postgres` service uses -- one schema definition, not two to keep in
+  # sync) reliably reruns and recreates `courses`/`player_season_stats`
+  # every time, with zero leftover rows from a previous run to reset by
+  # hand. tests/conftest.py still seeds/tears down its own fixture rows
+  # around each test on top of that -- this just guarantees the SCHEMA is
+  # always there and always clean, independent of container lifecycle.
+  postgres-test:
+    image: postgres:18
+    container_name: postgres-test
+    environment:
+      POSTGRES_DB: pga_tour_analytics_test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5433:5432"  # host access for pytest -> localhost:5433 (5432 is the real postgres service above)
+    volumes:
+      - type: tmpfs
+        target: /var/lib/postgresql
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d pga_tour_analytics_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: "0.5"
+    networks:
+      - spark-network
+
 networks:
   spark-network:
     driver: bridge
