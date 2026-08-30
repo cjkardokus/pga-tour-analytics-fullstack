@@ -3,10 +3,12 @@ A full-stack PGA Tour analytics application: PySpark data pipeline → PostgreSQ
 
 ## Status
 The PySpark pipeline and its Postgres store are complete and working
-end-to-end. The FastAPI layer's data-facing surface is now complete too
--- `courses`, `players`, and `leaderboards` cover everything in the
-current schema -- though the API as a whole still has no auth, tests, or
-deployment story yet. The React front-end hasn't been started.
+end-to-end. The FastAPI layer's data-facing surface is complete --
+`courses`, `players`, and `leaderboards` cover everything in the current
+schema -- and now has an automated test suite (`tests/`) running against
+a dedicated test database, independent of the real pipeline-generated
+data. The API as a whole still has no auth or deployment story yet, and
+the React front-end hasn't been started.
 
 ## Stack
 - **PySpark** — data transformation (reused from the prior
@@ -75,3 +77,29 @@ liveness check, `/docs` for the interactive Swagger UI, and everything
 else under the `/api/v1/` prefix (see `api/config.py`). `/docs` is the
 source of truth for the current endpoint list as more get added on later
 branches, rather than duplicating it here where it'd go stale.
+
+### Running tests
+
+The test suite (`tests/`) runs against its own dedicated `postgres-test`
+container and database -- never the real `postgres` container's
+pipeline-generated data, so tests can't break just because the pipeline
+re-ran and the dev data changed shape. Start it (no `.env` needed; its
+credentials are hardcoded in docker-compose.yml, since it never holds
+anything but the tests' own seeded rows):
+
+```bash
+cd docker && docker compose up -d postgres-test && cd ..
+```
+
+Then, with the virtualenv from above active:
+
+```bash
+pytest
+```
+
+Each test function seeds a small, fixed set of rows into `courses`/
+`player_season_stats` (see `tests/fixtures.py`) before running and tears
+them down after, so tests are independent of each other and of run order.
+`postgres-test`'s data directory is tmpfs-backed, so a plain
+`docker compose stop postgres-test` (or a machine restart) leaves nothing
+behind to clean up later.
