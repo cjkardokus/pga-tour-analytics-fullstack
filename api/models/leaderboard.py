@@ -1,0 +1,83 @@
+"""
+Category enum and response model for the leaderboard endpoints (see
+api/routers/leaderboards.py).
+
+`player_season_stats` (docker/init/schema.sql) carries a value column
+(avg_sg_* or sum_sg_*) and a matching stored rank column for each of the
+12 metrics below. CategoryEnum is the single place mapping the API-facing
+name a caller passes as `?category=...` to that (value_column,
+rank_column) pair, so the router never hardcodes column names inline.
+"""
+
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class CategoryEnum(str, Enum):
+    """
+    A `str, Enum` (rather than a plain string with regex/`Literal`
+    validation) so FastAPI renders this as an actual dropdown of the 12
+    valid values in Swagger UI, and so an invalid value gets FastAPI's
+    native 422 enum-validation error for free, instead of a custom check
+    in the route.
+    """
+
+    average_strokes_gained = "average_strokes_gained"
+    average_strokes_gained_putting = "average_strokes_gained_putting"
+    average_strokes_gained_around_green = "average_strokes_gained_around_green"
+    average_strokes_gained_approach = "average_strokes_gained_approach"
+    average_strokes_gained_off_tee = "average_strokes_gained_off_tee"
+    average_strokes_gained_tee_to_green = "average_strokes_gained_tee_to_green"
+    strokes_gained = "strokes_gained"
+    strokes_gained_putting = "strokes_gained_putting"
+    strokes_gained_around_green = "strokes_gained_around_green"
+    strokes_gained_approach = "strokes_gained_approach"
+    strokes_gained_off_tee = "strokes_gained_off_tee"
+    strokes_gained_tee_to_green = "strokes_gained_tee_to_green"
+
+    @property
+    def db_columns(self) -> tuple[str, str]:
+        """(value_column, rank_column) in player_season_stats for this category."""
+        return _CATEGORY_DB_COLUMNS[self]
+
+
+_CATEGORY_DB_COLUMNS: dict[CategoryEnum, tuple[str, str]] = {
+    CategoryEnum.average_strokes_gained: ("avg_sg_total", "avg_sg_total_rank"),
+    CategoryEnum.average_strokes_gained_putting: ("avg_sg_putt", "avg_sg_putt_rank"),
+    CategoryEnum.average_strokes_gained_around_green: ("avg_sg_arg", "avg_sg_arg_rank"),
+    CategoryEnum.average_strokes_gained_approach: ("avg_sg_app", "avg_sg_app_rank"),
+    CategoryEnum.average_strokes_gained_off_tee: ("avg_sg_ott", "avg_sg_ott_rank"),
+    CategoryEnum.average_strokes_gained_tee_to_green: ("avg_sg_t2g", "avg_sg_t2g_rank"),
+    CategoryEnum.strokes_gained: ("sum_sg_total", "sum_sg_total_rank"),
+    CategoryEnum.strokes_gained_putting: ("sum_sg_putt", "sum_sg_putt_rank"),
+    CategoryEnum.strokes_gained_around_green: ("sum_sg_arg", "sum_sg_arg_rank"),
+    CategoryEnum.strokes_gained_approach: ("sum_sg_app", "sum_sg_app_rank"),
+    CategoryEnum.strokes_gained_off_tee: ("sum_sg_ott", "sum_sg_ott_rank"),
+    CategoryEnum.strokes_gained_tee_to_green: ("sum_sg_t2g", "sum_sg_t2g_rank"),
+}
+
+
+class LeaderboardEntry(BaseModel):
+    """
+    One row of a leaderboard, for either GET /api/v1/leaderboards/season/{year}
+    or GET /api/v1/leaderboards/all-time.
+
+    `season` is included on both endpoints, not just the season one:
+    every leaderboard entry -- all-time included -- is still one specific
+    player-season's performance; all-time just ranks those rows across
+    every season at once rather than filtering to one first. Dropping
+    `season` from the all-time shape would actually lose information a
+    caller needs: the same player can appear more than once (once per
+    qualifying season), and without `season` two of that player's entries
+    would be indistinguishable.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    player_id: int = Field(alias="playerId")
+    player: str
+    season: int
+    tournaments_played: int = Field(alias="tournamentsPlayed")
+    value: float
+    rank: int
