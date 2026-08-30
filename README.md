@@ -37,7 +37,10 @@ first run:
   Compose cluster itself (Spark bind-mount paths, Postgres credentials).
 - `.env` at the project root (from `.env.example`) -- read by the pipeline
   itself to connect to Postgres. `POSTGRES_DB`/`USER`/`PASSWORD` here must
-  match `docker/.env`'s values exactly.
+  match `docker/.env`'s values exactly. Also carries `CORS_ORIGINS`, read
+  by the API only (see "Running the API locally" below) -- defaults to
+  `http://localhost:3000` if unset, so it's safe to leave out until a
+  front-end origin actually needs adding.
 
 ### Getting the data
 
