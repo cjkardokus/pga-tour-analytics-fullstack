@@ -36,6 +36,7 @@ export default function CourseDifficultyTable({ courses, highlightedId, onRowCli
             <TableCell>Course</TableCell>
             <TableCell align="right">Avg. Strokes Gained</TableCell>
             <TableCell align="right">Difficulty Rank</TableCell>
+            <TableCell align="right">Avg. Strokes vs. Par</TableCell>
             <TableCell align="right">Avg. Strokes vs. Par Rank</TableCell>
           </TableRow>
         </TableHead>
@@ -52,6 +53,7 @@ export default function CourseDifficultyTable({ courses, highlightedId, onRowCli
               <TableCell>{course.course}</TableCell>
               <TableCell align="right">{formatNullable(course.averageStrokesGained, 2)}</TableCell>
               <TableCell align="right">{formatNullable(course.difficultyRank)}</TableCell>
+              <TableCell align="right">{course.averageStrokesVsPar.toFixed(2)}</TableCell>
               <TableCell align="right">{course.averageStrokesVsParRank}</TableCell>
             </TableRow>
           ))}
