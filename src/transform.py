@@ -147,6 +147,20 @@ def build_player_season_stats(cleaned_df: DataFrame) -> DataFrame:
         table with no threshold -- a cumulative season total naturally
         sorts low-volume players toward the bottom without needing to
         exclude them.
+      - wins_rank / top_5_finishes_rank / top_10_finishes_rank /
+        cuts_made_rank (4 columns): same no-threshold rank() mechanism as
+        sum_sg_*_rank above -- these are also cumulative season totals, so a
+        low-volume player naturally sorts toward the bottom without needing
+        a qualification threshold. These are precomputed per-season (like
+        every other rank column here) because a season's totals are
+        stable/append-only once that season is complete -- next season just
+        adds new rows rather than changing this one. An *all-time* version
+        of these ranks is deliberately NOT added here: an all-time rank is
+        inherently unstable as new seasons of data are ingested (every
+        player's all-time total, and thus rank, can shift), so it's instead
+        computed on-the-fly at the API layer -- the same approach already
+        used for the existing SG all-time leaderboard (a separate,
+        upcoming branch).
       - sg_total_prev_season / sg_total_delta: lag() looks at the previous
         row for the same player_id once rows are ordered by season -- i.e.
         that player's own prior-season avg_sg_total. Subtracting gives a
@@ -207,6 +221,17 @@ def build_player_season_stats(cleaned_df: DataFrame) -> DataFrame:
         rank_window = Window.partitionBy("season").orderBy(F.desc(col_name))
         result = result.withColumn(f"{col_name}_rank", F.rank().over(rank_window))
 
+    # wins_rank / top_5_finishes_rank / top_10_finishes_rank / cuts_made_rank:
+    # same no-threshold rank() mechanism as sum_sg_*_rank above. wins,
+    # top_5_finishes, top_10_finishes, and cuts_made are already
+    # IntegerType by this point (cast explicitly in the agg() above), and
+    # rank() itself returns IntegerType, so no additional casting is
+    # needed here.
+    counting_stat_columns = ["wins", "top_5_finishes", "top_10_finishes", "cuts_made"]
+    for col_name in counting_stat_columns:
+        rank_window = Window.partitionBy("season").orderBy(F.desc(col_name))
+        result = result.withColumn(f"{col_name}_rank", F.rank().over(rank_window))
+
     return result.select(
         "season",
         "player_id",
@@ -228,6 +253,10 @@ def build_player_season_stats(cleaned_df: DataFrame) -> DataFrame:
         "top_5_finishes",
         "top_10_finishes",
         "cuts_made",
+        "wins_rank",
+        "top_5_finishes_rank",
+        "top_10_finishes_rank",
+        "cuts_made_rank",
         "avg_sg_putt_rank",
         "avg_sg_arg_rank",
         "avg_sg_app_rank",

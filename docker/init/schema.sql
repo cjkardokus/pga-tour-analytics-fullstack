@@ -41,6 +41,11 @@ CREATE TABLE IF NOT EXISTS player_season_stats (
     top_10_finishes           INTEGER,
     cuts_made                  INTEGER,
 
+    wins_rank                 INTEGER,
+    top_5_finishes_rank        INTEGER,
+    top_10_finishes_rank        INTEGER,
+    cuts_made_rank                INTEGER,
+
     avg_sg_putt_rank          INTEGER,
     avg_sg_arg_rank            INTEGER,
     avg_sg_app_rank             INTEGER,
