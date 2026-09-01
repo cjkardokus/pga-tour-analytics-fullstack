@@ -1,16 +1,44 @@
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import Container from "@mui/material/Container";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Link, NavLink, Outlet, RouterProvider } from "react-router-dom";
 
 import { RouteErrorFallback } from "./components/ErrorBoundary";
-import Courses from "./pages/Courses";
-import Home from "./pages/Home";
-import Leaderboards from "./pages/Leaderboards";
-import PlayerTrends from "./pages/PlayerTrends";
+
+/** Each page gets its own build chunk, fetched only when a user actually
+ * navigates to it, rather than shipped upfront in the main bundle -- see
+ * <Suspense> around <Outlet /> below for the loading state while a
+ * chunk's still in flight. Player Trends is the one that matters most
+ * here: it's the only page that pulls in Recharts, so lazy-loading it
+ * keeps Recharts out of every other page's download entirely.
+ *
+ * One lazy() call per page (not one per *route* -- players/:playerId
+ * below reuses this same PlayerTrends reference rather than its own
+ * lazy() call) -- reusing the same dynamic import() means both routes
+ * share one chunk and one load/cache, not two separate fetches of the
+ * same code. */
+const Home = lazy(() => import("./pages/Home"));
+const Leaderboards = lazy(() => import("./pages/Leaderboards"));
+const PlayerTrends = lazy(() => import("./pages/PlayerTrends"));
+const Courses = lazy(() => import("./pages/Courses"));
+
+/** Suspense fallback for a page chunk still in flight -- deliberately
+ * plain (a centered spinner), the same footprint as the error fallback
+ * it sits alongside (components/ErrorBoundary.tsx's ErrorFallback) so a
+ * loading route and a failed route occupy the page similarly rather than
+ * jumping around. */
+function RouteLoadingFallback() {
+  return (
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+      <CircularProgress />
+    </Box>
+  );
+}
 
 /** Nav bar links, in display order -- kept separate from the router's own
  * route list below (which needs an `index: true` route for "/" rather
@@ -51,7 +79,14 @@ function Layout() {
         </Toolbar>
       </AppBar>
       <Container component="main" sx={{ py: 4, flexGrow: 1 }}>
-        <Outlet />
+        {/* One Suspense boundary for every routed page below, rather than
+            one per route -- they'd all need the identical fallback
+            anyway, and a single boundary here is what keeps a route
+            transition's loading state from ever visibly touching the
+            AppBar/nav above it. */}
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Outlet />
+        </Suspense>
       </Container>
     </Box>
   );
