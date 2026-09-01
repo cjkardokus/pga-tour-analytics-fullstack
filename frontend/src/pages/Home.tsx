@@ -48,7 +48,7 @@ export default function Home() {
         PGA Tour Analytics
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Explore PGA Tour player and course performance data.
+        Explore PGA Tour player and course performance data from the 2017–2022 seasons.
       </Typography>
 
       <Box
