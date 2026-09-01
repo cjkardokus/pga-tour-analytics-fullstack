@@ -5,6 +5,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App.tsx";
+import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import "./index.css";
 
 // Default theme for now -- real palette/typography decisions wait for a
@@ -24,7 +25,9 @@ createRoot(document.getElementById("root")!).render(
             background/color to <body> -- see index.css for the one thing
             it doesn't cover (full-viewport height). */}
         <CssBaseline />
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,

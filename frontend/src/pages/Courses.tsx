@@ -72,6 +72,7 @@ export default function Courses() {
         <CardContent>
           <SearchBrowseList
             placeholder="Search courses by name…"
+            resourceName="courses"
             maxHeight={SEARCH_LIST_MAX_HEIGHT}
             onSelect={handleSelectFromSearch}
             useBrowse={useCourseBrowseItems}

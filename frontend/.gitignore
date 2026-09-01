@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Explicit, not just relying on the root .gitignore's broader .env rule --
+# keeps this directory self-contained if that ever changes. See
+# .env.example for what belongs in .env.local instead.
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

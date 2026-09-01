@@ -40,6 +40,12 @@ export interface QueryLike<T> {
 interface SearchBrowseListProps {
   /** Text field placeholder, e.g. "Search players by name…". */
   placeholder: string;
+  /** Plural, lowercase name of what this list holds, e.g. "players" or
+   * "courses" -- interpolated into the error/empty-state copy below
+   * ("Failed to load {resourceName}: …", "No {resourceName} found.") so
+   * that copy is accurate for whichever resource this instance is
+   * showing, rather than hardcoded to one of them. */
+  resourceName: string;
   /** Caps the height of the results list, scrolling internally past that
    * point instead of growing the page. Defaults to unconstrained (the
    * component's original behavior, still correct for Player Trends,
@@ -103,6 +109,7 @@ interface SearchBrowseListProps {
  */
 export default function SearchBrowseList({
   placeholder,
+  resourceName,
   maxHeight,
   onSelect,
   useBrowse,
@@ -150,6 +157,10 @@ export default function SearchBrowseList({
         fullWidth
         size="small"
         placeholder={placeholder}
+        // Placeholder text alone isn't a reliable accessible name (not
+        // consistently exposed by assistive tech, and it disappears once
+        // the field has a value) -- an explicit aria-label covers that.
+        aria-label={placeholder}
         value={inputValue}
         onChange={(event) => handleInputChange(event.target.value)}
         onFocus={() => {
@@ -174,13 +185,17 @@ export default function SearchBrowseList({
             </Box>
           )}
 
-          {active.isError && <Alert severity="error">Failed to load players: {active.error?.message}</Alert>}
+          {active.isError && (
+            <Alert severity="error">
+              Failed to load {resourceName}: {active.error?.message}
+            </Alert>
+          )}
 
           {active.isSuccess && (
             <>
               {(isSearchMode ? search.data! : browse.data!.items).length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                  No players found.
+                  No {resourceName} found.
                 </Typography>
               ) : (
                 <List dense disablePadding sx={{ maxHeight, overflowY: maxHeight ? "auto" : undefined }}>
