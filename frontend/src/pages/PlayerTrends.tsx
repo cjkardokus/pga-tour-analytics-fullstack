@@ -51,6 +51,7 @@ export default function PlayerTrends() {
             onSelect={(id) => navigate(`/players/${id}`)}
             useBrowse={usePlayerBrowseItems}
             useSearch={usePlayerSearchItems}
+            collapseOnSelect
           />
         </CardContent>
       </Card>
