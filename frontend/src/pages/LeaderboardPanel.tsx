@@ -1,3 +1,5 @@
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import CloseIcon from "@mui/icons-material/Close";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -12,12 +14,15 @@ import Stack from "@mui/material/Stack";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import { useState } from "react";
 
 import { CATEGORY_GROUPS, CATEGORY_LABELS, formatCategoryValue } from "../api/categories";
 import type { CategoryEnum, LeaderboardMode } from "../api/leaderboards";
 import { useAvailableSeasons, useLeaderboard } from "../api/leaderboards";
 import LeaderboardTable from "../components/LeaderboardTable";
+
+const PAGE_SIZE = 25;
 
 interface LeaderboardPanelProps {
   defaultMode: LeaderboardMode;
@@ -40,6 +45,11 @@ export default function LeaderboardPanel({ defaultMode, defaultCategory, canRemo
   // the actual default-to-most-recent-year behavior.
   const [year, setYear] = useState<number | null>(null);
   const [category, setCategory] = useState<CategoryEnum>(defaultCategory);
+  // This panel's own pagination offset, independent of the other panel's.
+  // Reset to 0 whenever mode/year/category changes below -- otherwise
+  // switching to a query with fewer results could leave this panel on a
+  // now out-of-bounds page.
+  const [offset, setOffset] = useState(0);
 
   const seasons = useAvailableSeasons();
 
@@ -51,21 +61,26 @@ export default function LeaderboardPanel({ defaultMode, defaultCategory, canRemo
   const mostRecentSeason = seasons.data && seasons.data.length > 0 ? seasons.data[seasons.data.length - 1] : null;
   const effectiveYear = mode === "season" ? (year ?? mostRecentSeason) : null;
 
-  const leaderboard = useLeaderboard({ mode, year: effectiveYear, category, limit: 25 });
+  const leaderboard = useLeaderboard({ mode, year: effectiveYear, category, limit: PAGE_SIZE, offset });
 
   function handleModeChange(_event: unknown, newMode: LeaderboardMode | null) {
     // MUI's exclusive ToggleButtonGroup emits null if the already-selected
     // button is clicked again -- ignore that rather than clearing mode.
-    if (newMode !== null) setMode(newMode);
+    if (newMode !== null) {
+      setMode(newMode);
+      setOffset(0);
+    }
   }
 
   function handleYearChange(event: SelectChangeEvent<number | "">) {
     const value = event.target.value;
     setYear(value === "" ? null : value);
+    setOffset(0);
   }
 
   function handleCategoryChange(event: SelectChangeEvent<CategoryEnum>) {
     setCategory(event.target.value as CategoryEnum);
+    setOffset(0);
   }
 
   return (
@@ -148,12 +163,35 @@ export default function LeaderboardPanel({ defaultMode, defaultCategory, canRemo
         )}
 
         {leaderboard.isSuccess && (
-          <LeaderboardTable
-            rows={leaderboard.data.results}
-            valueLabel={CATEGORY_LABELS[category]}
-            formatValue={(value) => formatCategoryValue(category, value)}
-            showSeason={mode === "all-time"}
-          />
+          <>
+            <LeaderboardTable
+              rows={leaderboard.data.results}
+              valueLabel={CATEGORY_LABELS[category]}
+              formatValue={(value) => formatCategoryValue(category, value)}
+              showSeason={mode === "all-time"}
+            />
+            <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mt: 1 }}>
+              <IconButton
+                size="small"
+                aria-label="Previous page"
+                disabled={offset === 0}
+                onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+              >
+                <ChevronLeftIcon />
+              </IconButton>
+              <Typography variant="caption" color="text.secondary">
+                {offset + 1}-{Math.min(offset + PAGE_SIZE, leaderboard.data.total)} of {leaderboard.data.total}
+              </Typography>
+              <IconButton
+                size="small"
+                aria-label="Next page"
+                disabled={offset + PAGE_SIZE >= leaderboard.data.total}
+                onClick={() => setOffset((current) => current + PAGE_SIZE)}
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </Stack>
+          </>
         )}
       </CardContent>
     </Card>

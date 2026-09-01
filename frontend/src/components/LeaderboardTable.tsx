@@ -34,22 +34,25 @@ interface LeaderboardTableProps {
    * Defaults to true. */
   showSeason?: boolean;
   /** Max height in px before the table scrolls internally, rather than
-   * growing the page. Defaults to roughly 10 rows. */
+   * growing the page. Defaults to unconstrained -- LeaderboardPanel now
+   * paginates at 25 rows per page (see ../pages/LeaderboardPanel.tsx),
+   * which fits on one page without needing an internal scroll region. */
   maxHeight?: number;
 }
 
 /**
  * Reusable leaderboard/season table: rank, player (linking to
  * /players/{playerId} via React Router, not a plain <a>), value, and
- * (optionally) season. Renders inside a height-capped TableContainer so a
- * long result set scrolls internally instead of growing the page.
+ * (optionally) season. When `maxHeight` is given, renders inside a
+ * height-capped TableContainer so a long result set scrolls internally
+ * instead of growing the page.
  */
 export default function LeaderboardTable({
   rows,
   valueLabel,
   formatValue = String,
   showSeason = true,
-  maxHeight = 400,
+  maxHeight,
 }: LeaderboardTableProps) {
   const showRank = rows.some((row) => row.rank !== undefined);
 
