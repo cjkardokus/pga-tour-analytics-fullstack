@@ -48,6 +48,7 @@ export default function PlayerTrends() {
         <CardContent>
           <SearchBrowseList
             placeholder="Search players by name…"
+            resourceName="players"
             onSelect={(id) => navigate(`/players/${id}`)}
             useBrowse={usePlayerBrowseItems}
             useSearch={usePlayerSearchItems}

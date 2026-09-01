@@ -47,6 +47,19 @@ export default function CourseDifficultyTable({ courses, highlightedId, onRowCli
               id={`course-row-${course.courseId}`}
               hover
               onClick={() => onRowClick(course.courseId)}
+              // TableRow renders a plain <tr>, not a natively interactive
+              // element -- tabIndex/role/onKeyDown make the same
+              // highlight/dismiss action the click handler triggers
+              // reachable and operable from the keyboard too (Enter/Space,
+              // the standard activation keys for a role="button" element).
+              tabIndex={0}
+              role="button"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault(); // Space shouldn't also scroll the page
+                  onRowClick(course.courseId);
+                }
+              }}
               selected={course.courseId === highlightedId}
               sx={{ cursor: "pointer", transition: "background-color 0.3s" }}
             >

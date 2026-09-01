@@ -6,6 +6,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { createBrowserRouter, Link, NavLink, Outlet, RouterProvider } from "react-router-dom";
 
+import { RouteErrorFallback } from "./components/ErrorBoundary";
 import Courses from "./pages/Courses";
 import Home from "./pages/Home";
 import Leaderboards from "./pages/Leaderboards";
@@ -60,6 +61,11 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />,
+    // Catches render errors from Layout or any routed page below it --
+    // see components/ErrorBoundary.tsx's RouteErrorFallback docstring for
+    // why this, not main.tsx's ErrorBoundary wrapping <RouterProvider>,
+    // is the catch point that actually engages for these.
+    errorElement: <RouteErrorFallback />,
     children: [
       { index: true, element: <Home /> },
       { path: "leaderboards", element: <Leaderboards /> },
