@@ -9,8 +9,12 @@ end-to-end. The FastAPI layer's data-facing surface is complete --
 `courses`, `players`, and `leaderboards` cover everything in the current
 schema -- and now has an automated test suite (`tests/`) running against
 a dedicated test database, independent of the real pipeline-generated
-data. The API as a whole still has no auth or deployment story yet, and
-the React front-end hasn't been started.
+data. The API as a whole still has no auth or deployment story yet.
+
+The React front-end (`frontend/`) is underway as a five-branch build:
+scaffolding (routing/layout shell + generated API types -- done), then
+Home, Leaderboards, Player Trends, and Courses pages. See
+`frontend/README.md` for setup and the type-generation workflow.
 
 ## Stack
 - **PySpark** — data transformation (reused from the prior
@@ -25,7 +29,10 @@ the React front-end hasn't been started.
   foundation (app, DB session handling, CORS, `/api/v1` versioning) plus
   three resources covering the full schema: `courses`, `players`,
   `leaderboards` (`api/routers/`)
-- **React** — front-end ⬜ not started
+- **React** — front-end 🚧 scaffolding complete (`frontend/`) — Vite +
+  TypeScript, React Router, TanStack Query, MUI, and API types generated
+  from the FastAPI OpenAPI schema; pages themselves not built yet, see
+  `frontend/README.md`
 
 ## Prerequisites
 
