@@ -1,5 +1,5 @@
 """
-Leaderboard endpoints -- ranks `player_season_stats` by one of the 12
+Leaderboard endpoints -- ranks `player_season_stats` by one of the 16
 metrics in CategoryEnum (see api/models/leaderboard.py), following the
 same PaginatedResponse/raw-SQL conventions as courses.py and players.py.
 

@@ -115,6 +115,17 @@ COURSES_BY_DIFFICULTY = [9002, 9001, 9004, 9005, 9003]
 #   distinct from every other seeded rank so it's unmistakable if it ever
 #   leaks into a result). Exercises both PlayerSeason's nullability and
 #   the leaderboard endpoints' "exclude on value, not just rank" filter.
+#
+# The four counting-stat columns (wins/top_5_finishes/top_10_finishes/
+# cuts_made) and their *_rank columns are real, populated values on every
+# row here, including Test Golfer Two's ShotLink-gap row -- unlike the SG
+# columns, these never go null in real pipeline output (see
+# src/transform.py), so this fixture set deliberately does NOT reproduce a
+# null-value counting-stat row. cuts_made_rank is set up to rank Test
+# Golfer Two ABOVE Test Golfer One in 2020 (9 cuts vs. 8) specifically so
+# a counting-stat leaderboard test can confirm ordering comes from that
+# category's own rank column, not by coincidentally matching the SG
+# ordering.
 PLAYER_SEASONS = [
     {
         "player_id": 90001,
@@ -125,6 +136,10 @@ PLAYER_SEASONS = [
         "top_5_finishes": 2,
         "top_10_finishes": 3,
         "cuts_made": 8,
+        "wins_rank": 1,  # 1 vs. Test Golfer Two's 0 in 2020
+        "top_5_finishes_rank": 1,  # 2 vs. Two's 1
+        "top_10_finishes_rank": 1,  # 3 vs. Two's 2
+        "cuts_made_rank": 2,  # 8 vs. Two's 9 -- Two ranks higher here
         "avg_sg_total": 2.0,
         "avg_sg_putt": 0.5,
         "avg_sg_arg": 0.3,
@@ -161,6 +176,10 @@ PLAYER_SEASONS = [
         "top_5_finishes": 5,
         "top_10_finishes": 8,
         "cuts_made": 18,
+        "wins_rank": 1,  # 2 vs. Test Golfer Three's 0 in 2021
+        "top_5_finishes_rank": 1,  # 5 vs. Three's 1
+        "top_10_finishes_rank": 1,  # 8 vs. Three's 4
+        "cuts_made_rank": 1,  # 18 vs. Three's 12
         "avg_sg_total": 2.5,
         "avg_sg_putt": 0.5,
         "avg_sg_arg": 0.4,
@@ -197,6 +216,10 @@ PLAYER_SEASONS = [
         "top_5_finishes": 1,
         "top_10_finishes": 4,
         "cuts_made": 12,
+        "wins_rank": 2,  # 0 vs. Test Golfer One's 2 in 2021
+        "top_5_finishes_rank": 2,  # 1 vs. One's 5
+        "top_10_finishes_rank": 2,  # 4 vs. One's 8
+        "cuts_made_rank": 2,  # 12 vs. One's 18
         "avg_sg_total": 2.0,
         "avg_sg_putt": 0.4,
         "avg_sg_arg": 4 / 15,
@@ -234,6 +257,10 @@ PLAYER_SEASONS = [
         "top_5_finishes": 1,
         "top_10_finishes": 2,
         "cuts_made": 9,
+        "wins_rank": 2,  # 0 vs. Test Golfer One's 1 in 2020
+        "top_5_finishes_rank": 2,  # 1 vs. One's 2
+        "top_10_finishes_rank": 2,  # 2 vs. One's 3
+        "cuts_made_rank": 1,  # 9 vs. One's 8 -- Two ranks HIGHER despite the SG gap below
         "avg_sg_total": None,
         "avg_sg_putt": None,
         "avg_sg_arg": None,
