@@ -65,6 +65,17 @@ interface SearchBrowseListProps {
    * unchanged behavior); Courses passes 25 to match its difficulty
    * table's page size below. */
   pageSize?: number;
+  /** When true, selecting an item collapses the list/pagination down to
+   * just the search input -- clicking or focusing the input reopens it
+   * (in browse or search mode, whichever the current input content
+   * implies), matching typeahead/autocomplete conventions. Defaults to
+   * false, preserving the original always-open behavior Courses relies
+   * on (selection there just highlights a row in the table below, so
+   * there's no "now-visible content" to reveal by collapsing). Player
+   * Trends opts in: once a player's selected, their career content is
+   * real page content below this card, and leaving the list expanded
+   * would force scrolling past it to reach that content. */
+  collapseOnSelect?: boolean;
 }
 
 /**
@@ -97,10 +108,15 @@ export default function SearchBrowseList({
   useBrowse,
   useSearch,
   pageSize = DEFAULT_BROWSE_PAGE_SIZE,
+  collapseOnSelect = false,
 }: SearchBrowseListProps) {
   const [inputValue, setInputValue] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [offset, setOffset] = useState(0);
+  // Only meaningful when collapseOnSelect is true -- ignored (list always
+  // rendered) otherwise. Starts open: nothing's selected yet, so there's
+  // nothing collapsing to reveal.
+  const [isOpen, setIsOpen] = useState(true);
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedQuery(inputValue.trim()), SEARCH_DEBOUNCE_MS);
@@ -121,6 +137,13 @@ export default function SearchBrowseList({
     setOffset(0);
   }
 
+  function handleSelect(id: number) {
+    onSelect(id);
+    if (collapseOnSelect) setIsOpen(false);
+  }
+
+  const showList = !collapseOnSelect || isOpen;
+
   return (
     <Box>
       <TextField
@@ -129,6 +152,9 @@ export default function SearchBrowseList({
         placeholder={placeholder}
         value={inputValue}
         onChange={(event) => handleInputChange(event.target.value)}
+        onFocus={() => {
+          if (collapseOnSelect) setIsOpen(true);
+        }}
         slotProps={{
           input: {
             startAdornment: (
@@ -140,57 +166,59 @@ export default function SearchBrowseList({
         }}
       />
 
-      <Box sx={{ mt: 1 }}>
-        {active.isLoading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
+      {showList && (
+        <Box sx={{ mt: 1 }}>
+          {active.isLoading && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          )}
 
-        {active.isError && <Alert severity="error">Failed to load players: {active.error?.message}</Alert>}
+          {active.isError && <Alert severity="error">Failed to load players: {active.error?.message}</Alert>}
 
-        {active.isSuccess && (
-          <>
-            {(isSearchMode ? search.data! : browse.data!.items).length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                No players found.
-              </Typography>
-            ) : (
-              <List dense disablePadding sx={{ maxHeight, overflowY: maxHeight ? "auto" : undefined }}>
-                {(isSearchMode ? search.data! : browse.data!.items).map((item) => (
-                  <ListItemButton key={item.id} onClick={() => onSelect(item.id)}>
-                    <ListItemText primary={item.label} />
-                  </ListItemButton>
-                ))}
-              </List>
-            )}
-
-            {!isSearchMode && browse.data && (
-              <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mt: 1 }}>
-                <IconButton
-                  size="small"
-                  aria-label="Previous page"
-                  disabled={offset === 0}
-                  onClick={() => setOffset((current) => Math.max(0, current - pageSize))}
-                >
-                  <ChevronLeftIcon />
-                </IconButton>
-                <Typography variant="caption" color="text.secondary">
-                  {offset + 1}-{Math.min(offset + pageSize, browse.data.total)} of {browse.data.total}
+          {active.isSuccess && (
+            <>
+              {(isSearchMode ? search.data! : browse.data!.items).length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                  No players found.
                 </Typography>
-                <IconButton
-                  size="small"
-                  aria-label="Next page"
-                  disabled={offset + pageSize >= browse.data.total}
-                  onClick={() => setOffset((current) => current + pageSize)}
-                >
-                  <ChevronRightIcon />
-                </IconButton>
-              </Stack>
-            )}
-          </>
-        )}
-      </Box>
+              ) : (
+                <List dense disablePadding sx={{ maxHeight, overflowY: maxHeight ? "auto" : undefined }}>
+                  {(isSearchMode ? search.data! : browse.data!.items).map((item) => (
+                    <ListItemButton key={item.id} onClick={() => handleSelect(item.id)}>
+                      <ListItemText primary={item.label} />
+                    </ListItemButton>
+                  ))}
+                </List>
+              )}
+
+              {!isSearchMode && browse.data && (
+                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mt: 1 }}>
+                  <IconButton
+                    size="small"
+                    aria-label="Previous page"
+                    disabled={offset === 0}
+                    onClick={() => setOffset((current) => Math.max(0, current - pageSize))}
+                  >
+                    <ChevronLeftIcon />
+                  </IconButton>
+                  <Typography variant="caption" color="text.secondary">
+                    {offset + 1}-{Math.min(offset + pageSize, browse.data.total)} of {browse.data.total}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    aria-label="Next page"
+                    disabled={offset + pageSize >= browse.data.total}
+                    onClick={() => setOffset((current) => current + pageSize)}
+                  >
+                    <ChevronRightIcon />
+                  </IconButton>
+                </Stack>
+              )}
+            </>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }
