@@ -168,6 +168,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/leaderboards/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Available Seasons
+         * @description Distinct list of seasons with data in `player_season_stats`, sorted
+         *     ascending -- lets the front-end's year selector (the season
+         *     leaderboard's {year} path param above) populate itself from whatever
+         *     the backend actually has, rather than a hardcoded list of years.
+         *
+         *     Not strictly necessary for this project's CURRENT scope: the dataset
+         *     is a fixed historical download (2017-2022), so hardcoding
+         *     [2017, ..., 2022] in the front-end would work fine today with no
+         *     practical downside. This endpoint exists so that stays true if it
+         *     ever stops being true -- if the pipeline is rerun against an
+         *     updated/extended dataset (e.g. new seasons added beyond 2022), the
+         *     front-end's year selector picks that up automatically on its next
+         *     request, with zero front-end code changes, instead of relying on
+         *     someone to remember to go update a hardcoded list living in a
+         *     completely different part of the codebase.
+         */
+        get: operations["get_available_seasons_api_v1_leaderboards_seasons_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/leaderboards/season/{year}": {
         parameters: {
             query?: never;
@@ -260,6 +294,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AvailableSeasonsResponse
+         * @description Response shape for GET /api/v1/leaderboards/seasons -- the distinct
+         *     list of seasons with data in `player_season_stats`, sorted ascending.
+         *
+         *     A plain wrapped list, not a `PaginatedResponse`: this will only ever
+         *     return a handful of years (one per season the pipeline has ingested),
+         *     nowhere near needing pagination.
+         */
+        AvailableSeasonsResponse: {
+            /** Seasons */
+            seasons: number[];
+        };
         /**
          * CategoryEnum
          * @description A `str, Enum` (rather than a plain string with regex/`Literal`
@@ -616,6 +663,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_available_seasons_api_v1_leaderboards_seasons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailableSeasonsResponse"];
                 };
             };
         };
