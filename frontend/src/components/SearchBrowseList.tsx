@@ -40,6 +40,14 @@ export interface QueryLike<T> {
 interface SearchBrowseListProps {
   /** Text field placeholder, e.g. "Search players by name…". */
   placeholder: string;
+  /** Caps the height of the results list, scrolling internally past that
+   * point instead of growing the page. Defaults to unconstrained (the
+   * component's original behavior, still correct for Player Trends,
+   * where this list is the primary content before a player is selected).
+   * Courses passes an explicit smaller value so the list reads as a
+   * compact lookup tool sitting above the real content -- the difficulty
+   * table -- rather than dominating the page. */
+  maxHeight?: number | string;
   /** Called with an item's id when it's clicked. What happens next is
    * entirely the caller's call -- navigate to a detail route (Player
    * Trends: `(id) => navigate(\`/players/${id}\`)`), scroll to and
@@ -78,7 +86,7 @@ interface SearchBrowseListProps {
  * capped, non-paginated match list via `useSearch`. Debounced ~300ms so
  * fast typing doesn't fire a request per keystroke.
  */
-export default function SearchBrowseList({ placeholder, onSelect, useBrowse, useSearch }: SearchBrowseListProps) {
+export default function SearchBrowseList({ placeholder, maxHeight, onSelect, useBrowse, useSearch }: SearchBrowseListProps) {
   const [inputValue, setInputValue] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [offset, setOffset] = useState(0);
@@ -137,7 +145,7 @@ export default function SearchBrowseList({ placeholder, onSelect, useBrowse, use
                 No players found.
               </Typography>
             ) : (
-              <List dense disablePadding>
+              <List dense disablePadding sx={{ maxHeight, overflowY: maxHeight ? "auto" : undefined }}>
                 {(isSearchMode ? search.data! : browse.data!.items).map((item) => (
                   <ListItemButton key={item.id} onClick={() => onSelect(item.id)}>
                     <ListItemText primary={item.label} />

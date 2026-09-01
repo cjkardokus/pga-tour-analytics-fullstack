@@ -14,7 +14,12 @@ import { useCourseBrowseItems, useCourseSearchItems, useCourses } from "../api/c
 import SearchBrowseList from "../components/SearchBrowseList";
 import CourseDifficultyTable from "./CourseDifficultyTable";
 
-const TABLE_PAGE_SIZE = 20;
+const TABLE_PAGE_SIZE = 25;
+
+// Caps the search/browse list to roughly 10 rows tall so it reads as a
+// compact lookup tool above the difficulty table rather than the page's
+// primary content (contrast Player Trends, which leaves this unset).
+const SEARCH_LIST_MAX_HEIGHT = 400;
 
 /**
  * Courses page: a persistent search/browse bar (reused from Player
@@ -67,6 +72,7 @@ export default function Courses() {
         <CardContent>
           <SearchBrowseList
             placeholder="Search courses by name…"
+            maxHeight={SEARCH_LIST_MAX_HEIGHT}
             onSelect={handleSelectFromSearch}
             useBrowse={useCourseBrowseItems}
             useSearch={useCourseSearchItems}
