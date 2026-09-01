@@ -47,13 +47,18 @@ async function fetchSeasonLeaderboard(
   year: number,
   category: CategoryEnum,
   limit: number,
+  offset: number,
 ): Promise<LeaderboardResponse> {
-  const params = new URLSearchParams({ category, limit: String(limit) });
+  const params = new URLSearchParams({ category, limit: String(limit), offset: String(offset) });
   return apiFetch<LeaderboardResponse>(`/api/v1/leaderboards/season/${year}?${params}`);
 }
 
-async function fetchAllTimeLeaderboard(category: CategoryEnum, limit: number): Promise<LeaderboardResponse> {
-  const params = new URLSearchParams({ category, limit: String(limit) });
+async function fetchAllTimeLeaderboard(
+  category: CategoryEnum,
+  limit: number,
+  offset: number,
+): Promise<LeaderboardResponse> {
+  const params = new URLSearchParams({ category, limit: String(limit), offset: String(offset) });
   return apiFetch<LeaderboardResponse>(`/api/v1/leaderboards/all-time?${params}`);
 }
 
@@ -77,9 +82,9 @@ export function useAvailableSeasons() {
 /**
  * Fetches one leaderboard -- season or all-time, whichever `mode` says --
  * keyed on every input that changes the result (mode, year, category,
- * limit), so switching any control re-fetches correctly and revisiting a
- * previously-seen combination is served from cache instead of a fresh
- * loading spinner.
+ * limit, offset), so switching any control or paging re-fetches correctly
+ * and revisiting a previously-seen combination is served from cache
+ * instead of a fresh loading spinner.
  *
  * Always calls both useQuery hooks (Rules of Hooks: hook calls can't be
  * conditional), but `enabled` means only the query matching `mode` ever
@@ -90,21 +95,23 @@ export function useLeaderboard({
   year,
   category,
   limit = 25,
+  offset = 0,
 }: {
   mode: LeaderboardMode;
   year: number | null;
   category: CategoryEnum;
   limit?: number;
+  offset?: number;
 }) {
   const seasonQuery = useQuery({
-    queryKey: ["leaderboard", "season", year, category, limit],
-    queryFn: () => fetchSeasonLeaderboard(year as number, category, limit),
+    queryKey: ["leaderboard", "season", year, category, limit, offset],
+    queryFn: () => fetchSeasonLeaderboard(year as number, category, limit, offset),
     enabled: mode === "season" && year !== null,
   });
 
   const allTimeQuery = useQuery({
-    queryKey: ["leaderboard", "all-time", category, limit],
-    queryFn: () => fetchAllTimeLeaderboard(category, limit),
+    queryKey: ["leaderboard", "all-time", category, limit, offset],
+    queryFn: () => fetchAllTimeLeaderboard(category, limit, offset),
     enabled: mode === "all-time",
   });
 

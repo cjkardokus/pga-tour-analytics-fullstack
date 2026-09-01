@@ -14,7 +14,7 @@ import Typography from "@mui/material/Typography";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState } from "react";
 
-const BROWSE_PAGE_SIZE = 20;
+const DEFAULT_BROWSE_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 
 export interface SearchBrowseItem {
@@ -61,6 +61,10 @@ interface SearchBrowseListProps {
   useBrowse: (limit: number, offset: number) => QueryLike<{ items: SearchBrowseItem[]; total: number }>;
   /** Fetches search matches for a non-empty, already-debounced query. */
   useSearch: (query: string) => QueryLike<SearchBrowseItem[]>;
+  /** Browse-mode page size. Defaults to 20 (Player Trends' original,
+   * unchanged behavior); Courses passes 25 to match its difficulty
+   * table's page size below. */
+  pageSize?: number;
 }
 
 /**
@@ -86,7 +90,14 @@ interface SearchBrowseListProps {
  * capped, non-paginated match list via `useSearch`. Debounced ~300ms so
  * fast typing doesn't fire a request per keystroke.
  */
-export default function SearchBrowseList({ placeholder, maxHeight, onSelect, useBrowse, useSearch }: SearchBrowseListProps) {
+export default function SearchBrowseList({
+  placeholder,
+  maxHeight,
+  onSelect,
+  useBrowse,
+  useSearch,
+  pageSize = DEFAULT_BROWSE_PAGE_SIZE,
+}: SearchBrowseListProps) {
   const [inputValue, setInputValue] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [offset, setOffset] = useState(0);
@@ -97,7 +108,7 @@ export default function SearchBrowseList({ placeholder, maxHeight, onSelect, use
   }, [inputValue]);
 
   const isSearchMode = debouncedQuery.length > 0;
-  const browse = useBrowse(BROWSE_PAGE_SIZE, offset);
+  const browse = useBrowse(pageSize, offset);
   const search = useSearch(debouncedQuery);
   const active = isSearchMode ? search : browse;
 
@@ -160,18 +171,18 @@ export default function SearchBrowseList({ placeholder, maxHeight, onSelect, use
                   size="small"
                   aria-label="Previous page"
                   disabled={offset === 0}
-                  onClick={() => setOffset((current) => Math.max(0, current - BROWSE_PAGE_SIZE))}
+                  onClick={() => setOffset((current) => Math.max(0, current - pageSize))}
                 >
                   <ChevronLeftIcon />
                 </IconButton>
                 <Typography variant="caption" color="text.secondary">
-                  {offset + 1}-{Math.min(offset + BROWSE_PAGE_SIZE, browse.data.total)} of {browse.data.total}
+                  {offset + 1}-{Math.min(offset + pageSize, browse.data.total)} of {browse.data.total}
                 </Typography>
                 <IconButton
                   size="small"
                   aria-label="Next page"
-                  disabled={offset + BROWSE_PAGE_SIZE >= browse.data.total}
-                  onClick={() => setOffset((current) => current + BROWSE_PAGE_SIZE)}
+                  disabled={offset + pageSize >= browse.data.total}
+                  onClick={() => setOffset((current) => current + pageSize)}
                 >
                   <ChevronRightIcon />
                 </IconButton>

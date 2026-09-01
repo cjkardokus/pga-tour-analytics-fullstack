@@ -76,6 +76,7 @@ export default function Courses() {
             onSelect={handleSelectFromSearch}
             useBrowse={useCourseBrowseItems}
             useSearch={useCourseSearchItems}
+            pageSize={TABLE_PAGE_SIZE}
           />
         </CardContent>
       </Card>
