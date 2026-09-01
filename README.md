@@ -200,3 +200,6 @@ cluster, so there's nothing for either to do in CI -- with
 Postgres's own init-script mechanism, since GitHub Actions starts service
 containers before the repo is even checked out (see the workflow file's
 own comments for why that rules out a volume-mounted init script here).
+The same workflow also runs a `frontend` job -- lint, typecheck, and
+production build for `frontend/`, in parallel with this one -- see
+`frontend/README.md`'s own "CI" section.
