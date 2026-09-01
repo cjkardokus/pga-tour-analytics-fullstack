@@ -64,6 +64,12 @@ const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: "leaderboards", element: <Leaderboards /> },
       { path: "player-trends", element: <PlayerTrends /> },
+      // Player detail route, linked from LeaderboardTable's player names
+      // (see components/LeaderboardTable.tsx). Still the same placeholder
+      // component as the nav's "Player Trends" page -- a real per-player
+      // detail view lands on that page's own branch; this route only
+      // needs to exist and read :playerId correctly for now.
+      { path: "players/:playerId", element: <PlayerTrends /> },
       { path: "courses", element: <Courses /> },
     ],
   },
