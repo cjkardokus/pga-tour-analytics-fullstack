@@ -95,3 +95,16 @@ class LeaderboardEntry(BaseModel):
     tournaments_played: int = Field(alias="tournamentsPlayed")
     value: float
     rank: int
+
+
+class AvailableSeasonsResponse(BaseModel):
+    """
+    Response shape for GET /api/v1/leaderboards/seasons -- the distinct
+    list of seasons with data in `player_season_stats`, sorted ascending.
+
+    A plain wrapped list, not a `PaginatedResponse`: this will only ever
+    return a handful of years (one per season the pipeline has ingested),
+    nowhere near needing pagination.
+    """
+
+    seasons: list[int]

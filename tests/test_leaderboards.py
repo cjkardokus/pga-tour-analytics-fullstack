@@ -1,6 +1,6 @@
 """
-Tests for GET /api/v1/leaderboards/season/{year} and
-GET /api/v1/leaderboards/all-time.
+Tests for GET /api/v1/leaderboards/season/{year},
+GET /api/v1/leaderboards/all-time, and GET /api/v1/leaderboards/seasons.
 
 All requests run against the seeded rows in tests/fixtures.py, never the
 real dev database. See tests/fixtures.py's module docstring for why
@@ -16,6 +16,15 @@ rank_column) mechanism (see api/models/leaderboard.py), so there's
 nothing category-specific in the route logic itself to re-test per
 category; these just confirm the new categories are wired in correctly.
 """
+
+
+def test_available_seasons_returns_distinct_seasons_ascending(client):
+    # tests/fixtures.py's PLAYER_SEASONS has four rows across two distinct
+    # seasons (2020, 2021) -- Test Golfer One appears in both, so a naive
+    # (non-DISTINCT) query would wrongly return 2020 twice.
+    response = client.get("/api/v1/leaderboards/seasons")
+    assert response.status_code == 200
+    assert response.json() == {"seasons": [2020, 2021]}
 
 
 def test_season_leaderboard_excludes_null_value_row_despite_populated_rank(client):

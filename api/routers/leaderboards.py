@@ -1,9 +1,11 @@
 """
 Leaderboard endpoints -- ranks `player_season_stats` by one of the 16
 metrics in CategoryEnum (see api/models/leaderboard.py), following the
-same PaginatedResponse/raw-SQL conventions as courses.py and players.py.
+same PaginatedResponse/raw-SQL conventions as courses.py and players.py,
+plus GET .../seasons, a small support endpoint for the front-end's year
+selector (see its own docstring below).
 
-IMPORTANT distinction between the two endpoints below: the stored
+IMPORTANT distinction between the two ranking endpoints below: the stored
 avg_sg_*_rank/sum_sg_*_rank columns are ranked WITHIN each season (a
 PARTITION BY season window in the PySpark pipeline that built them -- see
 src/transform.py) -- rank 1 appears once per season, not once overall.
@@ -21,16 +23,40 @@ from sqlalchemy.orm import Session
 
 from api.database import get_db
 from api.models import PaginatedResponse
-from api.models.leaderboard import CategoryEnum, LeaderboardEntry
+from api.models.leaderboard import AvailableSeasonsResponse, CategoryEnum, LeaderboardEntry
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
-# Both endpoints select the same shape (LeaderboardEntry's fields, `value`
-# aliased from whichever column the requested category maps to). Built
-# per-request since the column names depend on `category`, but always
-# from CategoryEnum.db_columns -- never from unvalidated user input -- so
-# there's no injection surface despite the f-string interpolation below.
+# Both ranking endpoints below select the same shape (LeaderboardEntry's
+# fields, `value` aliased from whichever column the requested category
+# maps to). Built per-request since the column names depend on
+# `category`, but always from CategoryEnum.db_columns -- never from
+# unvalidated user input -- so there's no injection surface despite the
+# f-string interpolation below.
 _ENTRY_COLUMNS = "player_id, player, season, tournaments_played"
+
+
+@router.get("/seasons")
+def get_available_seasons(db: Session = Depends(get_db)) -> AvailableSeasonsResponse:
+    """
+    Distinct list of seasons with data in `player_season_stats`, sorted
+    ascending -- lets the front-end's year selector (the season
+    leaderboard's {year} path param above) populate itself from whatever
+    the backend actually has, rather than a hardcoded list of years.
+
+    Not strictly necessary for this project's CURRENT scope: the dataset
+    is a fixed historical download (2017-2022), so hardcoding
+    [2017, ..., 2022] in the front-end would work fine today with no
+    practical downside. This endpoint exists so that stays true if it
+    ever stops being true -- if the pipeline is rerun against an
+    updated/extended dataset (e.g. new seasons added beyond 2022), the
+    front-end's year selector picks that up automatically on its next
+    request, with zero front-end code changes, instead of relying on
+    someone to remember to go update a hardcoded list living in a
+    completely different part of the codebase.
+    """
+    rows = db.execute(text("SELECT DISTINCT season FROM player_season_stats ORDER BY season ASC")).scalars().all()
+    return AvailableSeasonsResponse(seasons=list(rows))
 
 
 @router.get("/season/{year}")
