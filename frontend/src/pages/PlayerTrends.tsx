@@ -4,7 +4,7 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError } from "../api/client";
 import { usePlayerBrowseItems, usePlayerCareerSummary, usePlayerSearchItems, usePlayerSeasons } from "../api/players";
@@ -33,6 +33,7 @@ export default function PlayerTrends() {
   const { playerId: playerIdParam } = useParams<{ playerId: string }>();
   const parsedId = playerIdParam ? Number(playerIdParam) : NaN;
   const playerId = Number.isInteger(parsedId) ? parsedId : null;
+  const navigate = useNavigate();
 
   const career = usePlayerCareerSummary(playerId);
   const seasons = usePlayerSeasons(playerId);
@@ -47,7 +48,7 @@ export default function PlayerTrends() {
         <CardContent>
           <SearchBrowseList
             placeholder="Search players by name…"
-            getDetailPath={(id) => `/players/${id}`}
+            onSelect={(id) => navigate(`/players/${id}`)}
             useBrowse={usePlayerBrowseItems}
             useSearch={usePlayerSearchItems}
           />

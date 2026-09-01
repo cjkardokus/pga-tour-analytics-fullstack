@@ -13,7 +13,6 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 const BROWSE_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -41,10 +40,15 @@ export interface QueryLike<T> {
 interface SearchBrowseListProps {
   /** Text field placeholder, e.g. "Search players by name…". */
   placeholder: string;
-  /** Builds the route to navigate to when an item is clicked, e.g.
-   * `(id) => \`/players/${id}\`` -- keeps this component ignorant of
-   * which resource (players, courses, ...) it's browsing. */
-  getDetailPath: (id: number) => string;
+  /** Called with an item's id when it's clicked. What happens next is
+   * entirely the caller's call -- navigate to a detail route (Player
+   * Trends: `(id) => navigate(\`/players/${id}\`)`), scroll to and
+   * highlight a row in some other list on the same page (Courses: no
+   * detail route exists, so selecting a course instead jumps to its row
+   * in the difficulty table below), or anything else a future reuse
+   * needs. This component only ever reports *which id* was picked --
+   * see the module docstring below for why that's the right boundary. */
+  onSelect: (id: number) => void;
   /** Fetches one page of the full, unfiltered list (empty search input). */
   useBrowse: (limit: number, offset: number) => QueryLike<{ items: SearchBrowseItem[]; total: number }>;
   /** Fetches search matches for a non-empty, already-debounced query. */
@@ -54,20 +58,30 @@ interface SearchBrowseListProps {
 /**
  * Reusable, persistent search/browse list -- used standalone (not tied to
  * whether some detail route is currently selected), reused across
- * resources (players now, courses on an upcoming branch) by passing in
- * resource-specific query hooks and a detail-route builder rather than
- * hardcoding either here.
+ * resources (players, courses) by passing in resource-specific query
+ * hooks and an `onSelect` callback rather than hardcoding either here.
+ *
+ * `onSelect` over a `getDetailPath`-plus-internal-`navigate()` (this
+ * component's first shape, on the Player Trends branch): that version
+ * baked in the assumption that selecting an item always means routing
+ * somewhere, which held for players but broke the moment Courses needed
+ * "select an item" to mean "scroll to and highlight a table row on this
+ * same page" instead -- there's no course detail route to navigate to.
+ * Reporting only the selected id and letting the caller decide what
+ * "selected" *means* is what actually makes this component reusable
+ * across both cases (and whatever a future reuse needs) without a
+ * one-off variant or a union of "maybe navigate, maybe something else"
+ * props.
  *
  * Two modes, switched purely by whether the (debounced) search input is
  * empty: empty -> paginated browse via `useBrowse`; non-empty -> a
  * capped, non-paginated match list via `useSearch`. Debounced ~300ms so
  * fast typing doesn't fire a request per keystroke.
  */
-export default function SearchBrowseList({ placeholder, getDetailPath, useBrowse, useSearch }: SearchBrowseListProps) {
+export default function SearchBrowseList({ placeholder, onSelect, useBrowse, useSearch }: SearchBrowseListProps) {
   const [inputValue, setInputValue] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [offset, setOffset] = useState(0);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedQuery(inputValue.trim()), SEARCH_DEBOUNCE_MS);
@@ -125,7 +139,7 @@ export default function SearchBrowseList({ placeholder, getDetailPath, useBrowse
             ) : (
               <List dense disablePadding>
                 {(isSearchMode ? search.data! : browse.data!.items).map((item) => (
-                  <ListItemButton key={item.id} onClick={() => navigate(getDetailPath(item.id))}>
+                  <ListItemButton key={item.id} onClick={() => onSelect(item.id)}>
                     <ListItemText primary={item.label} />
                   </ListItemButton>
                 ))}
