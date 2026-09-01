@@ -1,0 +1,9 @@
+/* Deliberately minimal: MUI's <CssBaseline /> (see main.tsx) already
+   provides a real CSS reset plus theme-aware defaults (background, font
+   smoothing, box-sizing) -- this file just makes the root elements fill
+   the viewport, which CssBaseline doesn't do on its own. */
+html,
+body,
+#root {
+  height: 100%;
+}
