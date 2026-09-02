@@ -42,6 +42,13 @@ const NAV_CARDS: { to: string; label: string; description: string; Icon: SvgIcon
  * reload.
  */
 export default function Home() {
+  // DELIBERATE CI VERIFICATION ERROR -- do not merge.
+  // Confirms the frontend CI job's Typecheck step (`tsc -b`) actually
+  // fails the build on a real type error. See branch
+  // test/verify-ci-catches-failures.
+  const cardCount: number = "three";
+  void cardCount; // silence noUnusedLocals so this is purely a type error
+
   return (
     <Box sx={{ textAlign: "center" }}>
       <Typography variant="h3" component="h1" gutterBottom>
