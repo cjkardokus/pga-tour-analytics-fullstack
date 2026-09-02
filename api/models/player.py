@@ -15,7 +15,7 @@ table, though: avg_sg_total/_putt/_arg/_app/_ott/_t2g and their sum_sg_*
 counterparts are ALSO null for 203 of 2184 rows -- the same kind of
 ShotLink data gap already documented for `courses` (see
 api/models/course.py), not a threshold effect (e.g. Rory McIlroy's 2022
-season, tournaments_played=13, still has null sum_sg_total). Those had to
+season, tournaments_played=10, still has null sum_sg_total). Those had to
 be marked Optional too, or model_validate() would raise on the first row
 with a real gap. sum_sg_*_rank fields, by contrast, are never null in the
 table (confirmed: 0 nulls across all 2184 rows, even for seasons where the
