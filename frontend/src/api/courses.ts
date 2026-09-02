@@ -37,7 +37,18 @@ async function fetchCoursesSearch(query: string): Promise<CourseResponse[]> {
  * {id, label} shape, for the persistent search/browse bar. This is a
  * SEPARATE query (own queryKey, own cache entry) from useCourses below,
  * which feeds the page's main difficulty table -- the two aren't the
- * same list instance, and paging one must never affect the other. */
+ * same list instance, and paging one must never affect the other.
+ *
+ * This hook (and useCourseSearchItems below) hits the backend rather than
+ * filtering client-side over useCourses' already-fully-fetched array,
+ * even though at today's scale (81 courses, one ALL_COURSES_LIMIT
+ * request) that would technically work fine. Deliberate: SearchBrowseList
+ * is the same reusable component Player Trends uses over `players`, a
+ * resource that's never fetched-all-at-once and genuinely needs
+ * server-side search regardless of size -- keeping both call sites on the
+ * identical server-backed contract means courses doesn't need a special-
+ * cased client-filtering path today, and doesn't need an architecture
+ * change if this table ever grows past "fetch it all in one request". */
 export function useCourseBrowseItems(limit: number, offset: number): QueryLike<{ items: SearchBrowseItem[]; total: number }> {
   const query = useQuery({
     queryKey: ["courses", "search-bar-browse", limit, offset],

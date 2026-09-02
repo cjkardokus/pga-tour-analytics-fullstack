@@ -8,8 +8,8 @@ import App from "./App.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import "./index.css";
 
-// Default theme for now -- real palette/typography decisions wait for a
-// later branch. Created once at module scope, not per-render.
+// MUI's default theme -- this app hasn't needed a custom palette/typography
+// beyond it. Created once at module scope, not per-render.
 const theme = createTheme();
 
 // One QueryClient for the whole app's lifetime, likewise created once at

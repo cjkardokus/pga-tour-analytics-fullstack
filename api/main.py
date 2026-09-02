@@ -9,7 +9,7 @@ root-level .env in place -- see README.md's Setup section):
 Then:
   - http://localhost:8000/health        -- health check
   - http://localhost:8000/docs          -- Swagger UI
-  - http://localhost:8000/api/v1/...    -- future business-logic routes
+  - http://localhost:8000/api/v1/...    -- business-logic routes (courses, players, leaderboards)
 """
 
 import logging
@@ -102,12 +102,11 @@ async def handle_unexpected_exception(request: Request, exc: Exception) -> JSONR
 # --------------------------------------------------------------------------
 # CORS
 # --------------------------------------------------------------------------
-# Only the future React dev server needs cross-origin access (this API and
-# a browser app on different ports/origins) -- there's no other consumer
-# yet. Scoped to CORS_ORIGINS (see config.py) rather than "*" so this
-# doesn't silently widen into an open CORS policy once the API carries
-# real data; update CORS_ORIGINS (or make it env-driven) if/when the
-# front-end's actual dev port or a deployed origin differs.
+# Only the React dev server (frontend/, a different origin/port) needs
+# cross-origin access -- there's no other consumer. Scoped to CORS_ORIGINS
+# (see config.py) rather than "*" so this doesn't silently widen into an
+# open CORS policy; update CORS_ORIGINS (already env-driven) if the
+# front-end's dev port or a deployed origin ever differs.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -120,10 +119,10 @@ app.add_middleware(
 # Routers
 # --------------------------------------------------------------------------
 # All business-logic routes live under /api/v1 -- established from the
-# first endpoint (api/routers/courses.py) so nothing is ever added
-# un-prefixed and needs a breaking move to add versioning later. Future
-# router modules (api/routers/*.py) attach to api_v1_router the same way,
-# e.g. `api_v1_router.include_router(players.router)`.
+# first endpoint (api/routers/courses.py) so nothing was ever added
+# un-prefixed and needed a breaking move to add versioning later. Each
+# router module (api/routers/*.py) attaches to api_v1_router the same way,
+# below.
 #
 # Order matters here: APIRouter.include_router() copies the target
 # router's routes at call time, not lazily, so every include_router() onto

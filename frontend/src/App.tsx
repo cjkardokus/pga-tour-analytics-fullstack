@@ -106,10 +106,13 @@ const router = createBrowserRouter([
       { path: "leaderboards", element: <Leaderboards /> },
       { path: "player-trends", element: <PlayerTrends /> },
       // Player detail route, linked from LeaderboardTable's player names
-      // (see components/LeaderboardTable.tsx). Still the same placeholder
-      // component as the nav's "Player Trends" page -- a real per-player
-      // detail view lands on that page's own branch; this route only
-      // needs to exist and read :playerId correctly for now.
+      // (see components/LeaderboardTable.tsx). Deliberately the SAME
+      // PlayerTrends component as the nav's "Player Trends" page, not a
+      // separate detail view: PlayerTrends already reads :playerId itself
+      // (see pages/PlayerTrends.tsx) to decide whether to render its
+      // search bar alone or the selected player's full career content
+      // below it, so one route/component handles both "browse" and
+      // "already have a player in mind" entry points.
       { path: "players/:playerId", element: <PlayerTrends /> },
       { path: "courses", element: <Courses /> },
     ],
