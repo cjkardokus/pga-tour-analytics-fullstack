@@ -4,6 +4,16 @@ name: Tests
 # the original four-branch plan: runs the pytest suite (tests/) on every
 # push to main and every PR targeting it, so a broken test is caught
 # before merge rather than discovered later.
+#
+# The `frontend` job below (added in hardening/ci-frontend-parity) covers
+# the other half of the app the same way: lint + typecheck + production
+# build on every push/PR targeting main. It's a second job in this same
+# file, not a separate workflow -- one `on:` block for both, and jobs
+# without a `needs:` dependency between them already run in parallel, so
+# there's no cost to keeping them together. The Python job below keeps
+# its original `test` job id (not renamed to `backend`) so any existing
+# branch-protection required-check config referencing it by name still
+# matches.
 on:
   push:
     branches: [main]
@@ -130,3 +140,51 @@ jobs:
           POSTGRES_USER: unused_in_ci
           POSTGRES_PASSWORD: unused_in_ci
         run: pytest -v
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # frontend/package.json has no "engines" field pinning a
+          # version -- 24 is current Active LTS and matches what
+          # frontend/README.md's Prerequisites section says this project
+          # was actually set up against.
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci (not `npm install`) installs exactly what
+      # package-lock.json pins, and fails outright if the lockfile and
+      # package.json have drifted -- the reproducible-install behavior
+      # CI wants, matching the `pip install -r requirements*.txt` step
+      # above.
+      - name: Install dependencies
+        run: npm ci
+
+      # oxlint, configured via package.json's "lint" script.
+      - name: Lint
+        run: npm run lint
+
+      # Typecheck on its own, ahead of the build step below, so a type
+      # error is reported as a typecheck failure rather than getting
+      # bundled into (and only visible via) the build step's output --
+      # `npm run build` itself also runs `tsc -b` first (see
+      # package.json), so this repeats that check, but the separate step
+      # gives a clearer failure signal.
+      - name: Typecheck
+        run: npx tsc -b
+
+      # Production build (`tsc -b && vite build`). With no frontend test
+      # suite yet (see frontend/README.md), this is the closest
+      # available proxy for "the app actually compiles and bundles
+      # correctly."
+      - name: Build
+        run: npm run build

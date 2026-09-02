@@ -107,3 +107,12 @@ src/
   App.tsx       # React Router setup: layout + nav + routes
   main.tsx      # entry point: QueryClientProvider + MUI ThemeProvider
 ```
+
+## CI
+
+`npm run lint` (oxlint), `tsc -b` (typecheck), and `npm run build` all
+run on every push to `main` and every PR targeting it, via the
+`frontend` job in `.github/workflows/tests.yml` -- the same workflow
+that runs the backend's pytest suite, as a separate parallel job. There's
+no frontend test suite yet (see "Status" above), so this is CI-level
+build/lint/typecheck parity with the backend rather than test coverage.
