@@ -9,7 +9,7 @@ loaded into PostgreSQL, served by a FastAPI layer, and explored through a
 React front-end. The result is three things to explore -- leaderboards
 across 16 rankable stat categories, a player's career trends, and a
 strokes-gained-based course difficulty ranking -- all backed by real
-2017-2022 PGA Tour data, not mocked or hardcoded.
+2017-2022 PGA Tour data.
 
 ## Tech Stack
 
