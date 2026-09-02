@@ -1,7 +1,7 @@
 """
 Courses endpoints -- the first business-logic routes on the API, and the
-template later resource branches (players, leaderboards) are expected to
-follow: response fields renamed away from raw DB columns (see
+template api/routers/players.py and leaderboards.py both follow: response
+fields renamed away from raw DB columns (see
 api/models/course.py), a PaginatedResponse envelope for browsing, a
 lightweight search mode, and HTTPException for not-found.
 

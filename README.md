@@ -7,13 +7,12 @@ A full-stack PGA Tour analytics application: PySpark data pipeline → PostgreSQ
 The PySpark pipeline and its Postgres store are complete and working
 end-to-end. The FastAPI layer's data-facing surface is complete --
 `courses`, `players`, and `leaderboards` cover everything in the current
-schema -- and now has an automated test suite (`tests/`) running against
+schema -- and has an automated test suite (`tests/`) running against
 a dedicated test database, independent of the real pipeline-generated
 data. The API as a whole still has no auth or deployment story yet.
 
-The React front-end (`frontend/`) is underway as a five-branch build:
-scaffolding (routing/layout shell + generated API types -- done), then
-Home, Leaderboards, Player Trends, and Courses pages. See
+The React front-end (`frontend/`) is complete: Home, Leaderboards,
+Player Trends, and Courses pages, all built against the real API. See
 `frontend/README.md` for setup and the type-generation workflow.
 
 ## Stack
@@ -29,10 +28,9 @@ Home, Leaderboards, Player Trends, and Courses pages. See
   foundation (app, DB session handling, CORS, `/api/v1` versioning) plus
   three resources covering the full schema: `courses`, `players`,
   `leaderboards` (`api/routers/`)
-- **React** — front-end 🚧 scaffolding complete (`frontend/`) — Vite +
-  TypeScript, React Router, TanStack Query, MUI, and API types generated
-  from the FastAPI OpenAPI schema; pages themselves not built yet, see
-  `frontend/README.md`
+- **React** — front-end ✅ implemented (`frontend/`) — Vite + TypeScript,
+  React Router, TanStack Query, MUI, and API types generated from the
+  FastAPI OpenAPI schema; see `frontend/README.md`
 
 ## Prerequisites
 

@@ -66,11 +66,11 @@ DATABASE_URL = (
 # --------------------------------------------------------------------------
 # API versioning
 # --------------------------------------------------------------------------
-# Every business-logic route (added on later branches) is mounted under
-# this prefix -- see main.py. Established from the very first endpoint,
-# before there's anything to version, specifically so nothing is ever
-# added un-prefixed and needs a breaking move later. /health is the one
-# deliberate exception -- see main.py.
+# Every business-logic route is mounted under this prefix -- see main.py.
+# Established from the very first endpoint, before there was anything to
+# version, specifically so nothing was ever added un-prefixed and needed
+# a breaking move later. /health is the one deliberate exception -- see
+# main.py.
 API_V1_PREFIX = "/api/v1"
 
 # --------------------------------------------------------------------------

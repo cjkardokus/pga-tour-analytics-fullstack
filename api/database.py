@@ -59,7 +59,7 @@ def get_db():
     """
     FastAPI dependency: yields a Session for the lifetime of one request,
     closing it afterward regardless of whether the request succeeded.
-    Usage on a future route: `db: Session = Depends(get_db)`.
+    Usage (every route in api/routers/*.py): `db: Session = Depends(get_db)`.
     """
     db = SessionLocal()
     try:
@@ -71,8 +71,8 @@ def get_db():
 def check_connection() -> bool:
     """
     Verifies a real connection can be established and a query executed --
-    `SELECT 1` against the running Postgres container. Not wired to any
-    endpoint yet (scaffolding only); called from main.py's startup so a
+    `SELECT 1` against the running Postgres container. Deliberately not
+    wired to any endpoint; called from main.py's startup instead, so a
     misconfigured connection fails loudly at boot instead of on the first
     real request.
     """

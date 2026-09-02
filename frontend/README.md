@@ -6,11 +6,11 @@ deprecated) + React + TypeScript.
 
 ## Status
 
-This is Branch 1 of a five-branch build: scaffolding (this branch), then
-Home, Leaderboards, Player Trends, and Courses pages in later branches.
-`src/pages/` currently holds placeholder components for all four pages
-(each just a heading) so the routing/layout shell can be verified
-end-to-end before any real page gets built.
+All four pages are built: Home, Leaderboards, Player Trends, and Courses
+(`src/pages/`), plus the shared components they're built from
+(`src/components/` -- SearchBrowseList, LeaderboardTable,
+PlayerSeasonTable, ErrorBoundary). Every page fetches real data from the
+`api/` backend via TanStack Query.
 
 ## Stack
 
@@ -19,11 +19,10 @@ end-to-end before any real page gets built.
 - **React Router** (`react-router-dom`) -- real URL-based routing, not
   state-based view switching (see `src/App.tsx`)
 - **TanStack Query** (`@tanstack/react-query`) -- data fetching/caching,
-  wired up in `src/main.tsx`; no page fetches real data yet, so there's
-  nothing to query against until a later branch
-- **MUI** (Material UI) -- components/styling, with a default theme for
-  now (see `src/main.tsx`); real palette/typography decisions wait for a
-  later branch
+  wired up in `src/main.tsx` and used by every page's `src/api/*.ts` hooks
+- **MUI** (Material UI) -- components/styling, with MUI's default theme
+  (see `src/main.tsx`) -- this app hasn't needed a custom palette/
+  typography beyond it
 - Response types in `src/types/api.ts` are **generated** from the
   backend's OpenAPI schema via `openapi-typescript`, not hand-written --
   see "Type generation" below
@@ -93,16 +92,16 @@ is derived from `package.json`.
 
 The backend's `CORS_ORIGINS` (`api/config.py`, set via the project
 root's `.env` -- see `.env.example` there) is configured for
-`http://localhost:5173`, Vite's dev server port, so real API calls from
-this app will work once a later branch starts making them.
+`http://localhost:5173`, Vite's dev server port, so this app's real API
+calls work against a locally-run backend with zero extra config.
 
 ## Folder structure
 
 ```
 src/
-  api/          # fetch wrapper pointed at VITE_API_BASE_URL
-  components/   # shared/reusable components -- empty until a later branch
-  pages/        # one file per page (Home, Leaderboards, PlayerTrends, Courses)
+  api/          # fetch wrapper + per-resource TanStack Query hooks, pointed at VITE_API_BASE_URL
+  components/   # shared/reusable components (SearchBrowseList, LeaderboardTable, PlayerSeasonTable, ErrorBoundary)
+  pages/        # one file per page (Home, Leaderboards, PlayerTrends, Courses) plus their page-specific subcomponents
   types/        # generated api.ts (see "Type generation" above)
   App.tsx       # React Router setup: layout + nav + routes
   main.tsx      # entry point: QueryClientProvider + MUI ThemeProvider

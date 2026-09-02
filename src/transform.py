@@ -158,9 +158,9 @@ def build_player_season_stats(cleaned_df: DataFrame) -> DataFrame:
         of these ranks is deliberately NOT added here: an all-time rank is
         inherently unstable as new seasons of data are ingested (every
         player's all-time total, and thus rank, can shift), so it's instead
-        computed on-the-fly at the API layer -- the same approach already
-        used for the existing SG all-time leaderboard (a separate,
-        upcoming branch).
+        computed on-the-fly at the API layer -- the same approach used for
+        the SG all-time leaderboard (see
+        api/routers/leaderboards.py's get_all_time_leaderboard()).
       - sg_total_prev_season / sg_total_delta: lag() looks at the previous
         row for the same player_id once rows are ordered by season -- i.e.
         that player's own prior-season avg_sg_total. Subtracting gives a
