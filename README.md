@@ -42,19 +42,15 @@ strokes-gained-based course difficulty ranking -- all backed by real
 - **Vite** -- dev server / build tool (not Create React App, which is
   deprecated).
 - **TypeScript** -- chosen over plain JavaScript for stronger typing and
-  tooling, and because it's the stronger, more expected signal in a
-  professional React codebase.
+  tooling.
 - **React** + **React Router** -- real URL-based routing
   (`createBrowserRouter`), not state-based view switching.
 - **TanStack Query** -- data fetching/caching; chosen partly because it
   cleanly handles the debounced search-and-select pattern used
   throughout the app (the players/courses search bars, in particular)
   without hand-rolling request cancellation or race-condition handling.
-- **MUI** (Material UI) -- component library and styling. This project's
-  target roles are data-engineering/backend-leaning, not
-  frontend-exclusive, so MUI was chosen to ship a clean, functional,
-  professional UI efficiently, rather than spend the time demonstrating
-  from-scratch custom design work.
+- **MUI** (Material UI) -- component library and styling. MUI was chosen to ship a clean, functional,
+  professional UI efficiently.
 - **Recharts** -- the two Player Trends charts. Chosen over Chart.js
   specifically because it renders SVG, not canvas -- every chart element
   is real, inspectable DOM, consistent with this project's general
