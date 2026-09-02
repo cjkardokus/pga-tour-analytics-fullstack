@@ -287,9 +287,6 @@ for how to download it (not committed to this repo).
 
 ## Data Quality Notes
 
-Findings from this project's own pipeline work (`src/transform.py`),
-not generic caveats:
-
 - **Conflicting duplicate rows.** 21 (tournament, player) pairs had two
   contradictory rows each (42 rows total) -- e.g. different finish
   position or strokes-gained values for what should be one player's
